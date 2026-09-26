@@ -1,0 +1,10 @@
+{
+  "rewrites": [
+    { "source": "/proxy/exo/:path*", "destination": "https://exoplanetarchive.ipac.caltech.edu/:path*" },
+    { "source": "/proxy/horizons/:path*", "destination": "https://ssd.jpl.nasa.gov/:path*" },
+    { "source": "/proxy/gaia/:path*", "destination": "https://gea.esac.esa.int/:path*" }
+  ],
+  "headers": [
+    { "source": "/assets/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] }
+  ]
+}
