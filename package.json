@@ -2,6 +2,8 @@
   "name": "astralis",
   "private": true,
   "version": "0.1.0",
+  "license": "UNLICENSED",
+  "author": "ReiKama414",
   "type": "module",
   "scripts": {
     "dev": "vite",
