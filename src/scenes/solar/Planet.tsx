@@ -9,6 +9,7 @@ import { ringGeo, sphereGeo } from './shared'
 import { simClock } from '../../core/time/SimulationClock'
 import { useQuality } from '../useQuality'
 import { loadRemoteTexture } from '../../core/assets/RemoteTextures'
+import { NOISE } from '../../shaders/noise'
 
 const tmpV = new THREE.Vector3()
 const tmpV2 = new THREE.Vector3()
@@ -121,6 +122,106 @@ function Clouds({ radius, texture, channel, opacity, sunPos, speed }: { radius: 
   return <mesh geometry={sphereGeo(96)} material={mat} scale={radius * 1.012} renderOrder={3} />
 }
 
+const auroraVert = /* glsl */ `
+varying vec3 vLocal;
+varying vec3 vWorld;
+varying vec3 vWorldN;
+void main(){
+  vLocal = normalize(position);
+  vec4 w = modelMatrix * vec4(position, 1.0);
+  vWorld = w.xyz;
+  vWorldN = normalize(mat3(modelMatrix) * normal);
+  gl_Position = projectionMatrix * viewMatrix * w;
+}
+`
+const auroraFrag = /* glsl */ `
+${NOISE}
+uniform vec3 uColor;
+uniform vec3 uColor2;
+uniform float uTime;
+uniform vec3 uSunWorld;
+varying vec3 vLocal;
+varying vec3 vWorld;
+varying vec3 vWorldN;
+void main(){
+  float lat = asin(clamp(abs(vLocal.y), 0.0, 1.0));
+  float lon = atan(vLocal.z, vLocal.x);
+  // wavy auroral oval around ~68° latitude
+  float oval = 1.18 + 0.05 * sin(lon * 3.0 + uTime * 0.2) + 0.03 * snoise(vec3(lon * 2.0, uTime * 0.1, 0.0));
+  float band = exp(-pow((lat - oval) / 0.07, 2.0));
+  float rays = 0.45 + 0.55 * smoothstep(-0.2, 0.8, snoise(vec3(lon * 22.0, uTime * 0.35, vLocal.y * 3.0)));
+  vec3 V = normalize(cameraPosition - vWorld);
+  float rim = pow(1.0 - abs(dot(normalize(vWorldN), V)), 1.5);
+  float night = smoothstep(0.15, -0.35, dot(normalize(vWorldN), normalize(uSunWorld - vWorld)));
+  float a = band * rays * (0.35 + 0.65 * rim) * (0.35 + 0.65 * night);
+  vec3 col = mix(uColor, uColor2, smoothstep(1.1, 1.3, lat + 0.1 * rays));
+  gl_FragColor = vec4(col * a * 1.6, 1.0);
+}
+`
+
+/** Fantasy aurora: animated curtains of light circling both magnetic poles. */
+function Aurora({ radius, color, sunPos }: { radius: number; color: string; sunPos: THREE.Vector3 }) {
+  const mat = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        vertexShader: auroraVert,
+        fragmentShader: auroraFrag,
+        uniforms: { uColor: { value: new THREE.Color(color) }, uColor2: { value: new THREE.Color(color).offsetHSL(0.18, 0, 0.05) }, uTime: { value: 0 }, uSunWorld: { value: new THREE.Vector3() } },
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+      }),
+    [color],
+  )
+  useEffect(() => () => mat.dispose(), [mat])
+  useFrame(() => {
+    mat.uniforms.uTime.value = simClock.anim
+    mat.uniforms.uSunWorld.value.copy(sunPos)
+  })
+  return <mesh geometry={sphereGeo(96)} material={mat} scale={radius * 1.035} renderOrder={5} />
+}
+
+/** Glittering particles scattered through fantasy ring systems. */
+function RingSparkles({ radius, rings, seed }: { radius: number; rings: NonNullable<PlanetVisual['rings']>; seed: number }) {
+  const { geo, mat } = useMemo(() => {
+    const n = 2600
+    const p = new Float32Array(n * 3)
+    const ph = new Float32Array(n)
+    let st = (seed * 9301 + 49297) % 233280
+    const rnd = () => ((st = (st * 9301 + 49297) % 233280) / 233280)
+    for (let i = 0; i < n; i++) {
+      const a = rnd() * Math.PI * 2
+      const rr = radius * (rings.inner + (rings.outer - rings.inner) * Math.pow(rnd(), 0.8))
+      p.set([Math.cos(a) * rr, (rnd() - 0.5) * radius * 0.01, Math.sin(a) * rr], i * 3)
+      ph[i] = rnd() * 6.28
+    }
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.BufferAttribute(p, 3))
+    geo.setAttribute('aPhase', new THREE.BufferAttribute(ph, 1))
+    const mat = new THREE.ShaderMaterial({
+      vertexShader: `attribute float aPhase; uniform float uTime; uniform float uPR; varying float vA;
+        void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); gl_Position = projectionMatrix * mv;
+        vA = pow(0.5 + 0.5*sin(uTime*2.0 + aPhase*3.0), 6.0); gl_PointSize = (1.5 + 3.0*vA) * uPR; }`,
+      fragmentShader: `uniform vec3 uColor; varying float vA; void main(){ vec2 c = gl_PointCoord-0.5; float r = length(c);
+        float a = (exp(-r*r*40.0) + (exp(-abs(c.x)*40.0)*exp(-abs(c.y)*6.0) + exp(-abs(c.y)*40.0)*exp(-abs(c.x)*6.0))*0.4) * (0.15 + vA);
+        if(a < 0.01) discard; gl_FragColor = vec4(uColor * a, 1.0); }`,
+      uniforms: { uTime: { value: 0 }, uPR: { value: 1 }, uColor: { value: new THREE.Color(rings.palette[0]).lerp(new THREE.Color('#ffffff'), 0.5) } },
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    })
+    return { geo, mat }
+  }, [radius, rings, seed])
+  useEffect(() => () => (geo.dispose(), mat.dispose()), [geo, mat])
+  useFrame(({ gl }) => {
+    mat.uniforms.uTime.value = simClock.anim
+    mat.uniforms.uPR.value = gl.getPixelRatio()
+  })
+  const tilt = ((rings.tiltDeg ?? 0) * Math.PI) / 180
+  return <points geometry={geo} material={mat} rotation={[tilt, 0, 0]} renderOrder={7} />
+}
+
 export interface BodyProps {
   obj: CelestialObject
   radius: number
@@ -146,10 +247,10 @@ export function PlanetSurface({ obj, radius, sunPos, centerRef }: BodyProps) {
   }, [gl, v, size])
 
   const mat = useMemo(() => {
-    const m = new THREE.MeshStandardMaterial({ roughness: v.roughness ?? 1, metalness: 0, bumpScale: v.surface === 'gas' || v.surface === 'ice-giant' || v.surface === 'venus' ? 0 : 0.55 })
+    const m = new THREE.MeshStandardMaterial({ roughness: v.roughness ?? 1, metalness: 0, bumpScale: v.surface === 'gas' || v.surface === 'ice-giant' || v.surface === 'venus' || v.surface === 'dream-gas' ? 0 : 0.55 })
     const uniforms = {
       uData: { value: null as THREE.Texture | null },
-      uEmissiveTint: { value: new THREE.Color(v.surface === 'lava' ? v.palette[1] ?? '#ff6a2a' : '#000000') },
+      uEmissiveTint: { value: new THREE.Color(v.surface === 'lava' ? v.palette[1] ?? '#ff6a2a' : v.surface === 'biolume' ? v.palette[3] : v.surface === 'crystal' ? v.palette[1] : '#000000').multiplyScalar(v.surface === 'crystal' ? 0.35 : 1) },
       uRimColor: { value: new THREE.Color(v.atmosphere?.color ?? '#000000') },
       uRimStrength: { value: v.atmosphere ? 0.35 * v.atmosphere.density : 0 },
       uSunWorld: { value: new THREE.Vector3() },
@@ -196,7 +297,7 @@ export function PlanetSurface({ obj, radius, sunPos, centerRef }: BodyProps) {
     if (!baked) return
     mat.map = photo ?? baked.albedo
     mat.roughnessMap = baked.data
-    mat.bumpMap = photo || v.surface === 'gas' || v.surface === 'ice-giant' || v.surface === 'venus' ? null : baked.data
+    mat.bumpMap = photo || v.surface === 'gas' || v.surface === 'ice-giant' || v.surface === 'venus' || v.surface === 'dream-gas' ? null : baked.data
     mat.userData.uniforms.uData.value = baked.data
     mat.needsUpdate = true
   }, [baked, photo, mat, v.surface])
@@ -216,6 +317,8 @@ export function PlanetSurface({ obj, radius, sunPos, centerRef }: BodyProps) {
       <mesh ref={spin} geometry={sphereGeo(segs)} material={mat} scale={radius} />
       {baked?.clouds && v.clouds && <Clouds radius={radius} texture={baked.clouds} channel={0} opacity={v.clouds.opacity * (v.surface === 'venus' ? 0.35 : 0.9)} sunPos={sunPos} speed={v.clouds.speed ?? 1} />}
       {v.rings && <Rings radius={radius} rings={v.rings} seed={v.seed} sunPos={sunPos} centerRef={centerRef} />}
+      {v.rings?.kind === 'fantasy' && <RingSparkles radius={radius} rings={v.rings} seed={v.seed} />}
+      {v.aurora && <Aurora radius={radius} color={v.aurora} sunPos={sunPos} />}
     </group>
   )
 }

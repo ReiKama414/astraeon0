@@ -6,6 +6,7 @@ import { positionInScene } from '../../core/coords/SceneScaleManager'
 import { GalaxyRenderer } from './GalaxyRenderer'
 import { CelestialMarker } from '../common/CelestialMarker'
 import { BackgroundSky } from '../common/BackgroundSky'
+import { DreamSky } from '../common/DreamSky'
 import { GlowPoint } from '../common/GlowPoint'
 import { useQuality } from '../useQuality'
 import { signalSceneReady } from '../../core/navigation/Navigator'
@@ -14,7 +15,7 @@ import { SYSTEMS_PER_GALAXY, generateBlackHole, generateSystem } from '../../cor
 import type { CelestialObject } from '../../core/registry/types'
 import { retain, release } from '../../core/registry/SceneStreamingManager'
 
-const NEBULA_TINT: Record<string, string> = { m42: '#ff8fb0', m1: '#8fd0ff', m16: '#ffd08a', 'carina-nebula': '#ff9d7a' }
+const NEBULA_TINT: Record<string, string> = { m42: '#ff8fb0', m1: '#8fd0ff', m16: '#ffd08a', 'carina-nebula': '#ff9d7a', m57: '#8fe6d8', helix: '#7fd6e0', m8: '#ff8aa8', horsehead: '#ff7a86', m45: '#9ab8ff', 'omega-cen': '#ffd9a8', m13: '#ffe2b8' }
 
 function Jet({ length = 60 }: { length?: number }) {
   const { geo, mat } = useMemo(() => {
@@ -61,7 +62,7 @@ export function GalaxyScene({ scene }: { scene: SceneRef }) {
 
   return (
     <group>
-      <BackgroundSky band={false} starCount={Math.floor(q.backgroundStars * 0.4)} intensity={0.7} starScale={0.8} />
+      {fantasy ? <DreamSky palette={[g.armColor, g.hiiColor ?? g.coreColor, g.coreColor]} seed={g.seed} starCount={Math.floor(q.backgroundStars * 0.4)} /> : <BackgroundSky band={false} starCount={Math.floor(q.backgroundStars * 0.4)} intensity={0.7} starScale={0.8} />}
       <group rotation={[0, 0, 0]}>
         <GalaxyRenderer galaxy={g} unitsPerKpc={10} stars={q.galaxyStars} haze={q.galaxyHaze} starSize={g.morphology === 'elliptical' ? 0.14 : 0.1} intensity={g.morphology === 'elliptical' ? 0.8 : 1} onReady={onReady} nearFade={2.5} />
       </group>
@@ -76,7 +77,7 @@ export function GalaxyScene({ scene }: { scene: SceneRef }) {
             </CelestialMarker>
           )
         }
-        if (c.type === 'nebula') {
+        if (c.type === 'nebula' || c.type === 'star-cluster') {
           return (
             <CelestialMarker key={c.id} obj={c} position={pos} pickRadius={0.9} labelMaxDistance={160}>
               <GlowPoint color={NEBULA_TINT[c.id] ?? '#ff9fc0'} size={1.4} minPx={5} intensity={0.9} />

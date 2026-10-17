@@ -5,6 +5,7 @@ import { registry, type SceneRef } from '../../core/registry/CelestialRegistry'
 import type { NebulaVisual } from '../../core/registry/types'
 import { buildNebula } from './nebulaModels'
 import { BackgroundSky } from '../common/BackgroundSky'
+import { DreamSky } from '../common/DreamSky'
 import { CelestialMarker } from '../common/CelestialMarker'
 import { useQuality } from '../useQuality'
 import { signalSceneReady } from '../../core/navigation/Navigator'
@@ -94,7 +95,11 @@ void main(){
   vec2 tile = vec2(mod(vTile, 2.0), floor(vTile/2.0));
   float a = texture2D(uAtlas, (c + 0.5)*0.5 + tile*0.5).a * vAlpha;
   if(a < 0.004) discard;
-  if(uDust > 0.5) gl_FragColor = vec4(vColor, a*0.85);
+  if(uDust > 0.5){
+    // dust reads as cool shadow, not brown paint
+    float l = dot(vColor, vec3(0.3, 0.5, 0.2));
+    gl_FragColor = vec4(mix(vec3(l) * vec3(0.8, 0.85, 1.0), vColor, 0.3) * 0.7, a * 0.85);
+  }
   else gl_FragColor = vec4(vColor * a * uIntensity, 1.0);
 }
 `
@@ -177,8 +182,10 @@ export function NebulaScene({ scene }: { scene: SceneRef }) {
   const onReady = useMemo(() => () => signalSceneReady(scene.id), [scene.id])
   return (
     <group>
-      <BackgroundSky band starCount={q.backgroundStars} intensity={0.8} />
-      <NebulaRenderer visual={host.visual.nebula!} sprites={q.nebulaSprites} onReady={onReady} />
+      {host.sourceType === 'real' ? <BackgroundSky band starCount={q.backgroundStars} intensity={0.8} /> : <DreamSky palette={host.visual.nebula!.palette} seed={host.seed ?? 1} starCount={q.backgroundStars} />}
+      <group rotation={host.visual.nebula!.style ? [0.08, 0.3, 0.04] : [0, 0, 0]}>
+        <NebulaRenderer visual={host.visual.nebula!} sprites={q.nebulaSprites} onReady={onReady} />
+      </group>
       <CelestialMarker obj={host} pickRadius={0.01} label={false} />
     </group>
   )

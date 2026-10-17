@@ -12,7 +12,21 @@ import { SettingsPanel } from './SettingsPanel'
 import { StatsHUD } from './StatsHUD'
 import { SceneTitle } from './SceneTitle'
 import { ControlsHint } from './ControlsHint'
+import { OrbitReadout } from './OrbitReadout'
 import { cancelAllTravel, goUp } from '../core/navigation/Navigator'
+import { Presence } from './Presence'
+import { useLatest, usePresence } from './usePresence'
+
+function Toast({ text }: { text: string | null }) {
+  const last = useLatest(text)
+  const { mounted, shown } = usePresence(!!text, 450)
+  if (!mounted) return null
+  return (
+    <div data-shown={shown} className="pop from-top pointer-events-none absolute left-1/2 top-20 -translate-x-1/2 rounded-full glass px-5 py-2 text-[12.5px] text-ink/90">
+      {last}
+    </div>
+  )
+}
 
 export function HUD() {
   const photo = useApp((s) => s.photoMode)
@@ -60,14 +74,13 @@ export function HUD() {
       <BottomDock />
       <SceneTitle />
       <ControlsHint />
+      <OrbitReadout />
       <TourOverlay />
-      {panel === 'search' && <SearchPanel />}
-      {panel === 'compare' && <ComparePanel />}
-      {panel === 'settings' && <SettingsPanel />}
+      <Presence open={panel === 'search'}>{(shown) => <SearchPanel shown={shown} />}</Presence>
+      <Presence open={panel === 'compare'}>{(shown) => <ComparePanel shown={shown} />}</Presence>
+      <Presence open={panel === 'settings'}>{(shown) => <SettingsPanel shown={shown} />}</Presence>
       {showStats && <StatsHUD />}
-      {toast && (
-        <div className="fade-in pointer-events-none absolute left-1/2 top-20 -translate-x-1/2 rounded-full glass px-4 py-2 text-xs text-ink/90">{toast}</div>
-      )}
+      <Toast text={toast} />
     </div>
   )
 }

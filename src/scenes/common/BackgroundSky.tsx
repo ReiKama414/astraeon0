@@ -109,7 +109,7 @@ void main(){
 }
 `
 
-export function BackgroundSky({ frame = 'galactic', band = true, starCount = 20000, intensity = 1, starScale = 1 }: { frame?: SkyFrame; band?: boolean; starCount?: number; intensity?: number; starScale?: number }) {
+export function BackgroundSky({ frame = 'galactic', band = true, starCount = 20000, intensity = 1, starScale = 1, starsOnly = false }: { frame?: SkyFrame; band?: boolean; starCount?: number; intensity?: number; starScale?: number; starsOnly?: boolean }) {
   const toGal = useMemo(() => frameToGalactic(frame), [frame])
   const bandMat = useMemo(
     () =>
@@ -191,7 +191,7 @@ export function BackgroundSky({ frame = 'galactic', band = true, starCount = 200
 
   return (
     <group>
-      <mesh geometry={bandGeo} material={bandMat} renderOrder={-1000} frustumCulled={false} />
+      {!starsOnly && <mesh geometry={bandGeo} material={bandMat} renderOrder={-1000} frustumCulled={false} />}
       <points geometry={geo} material={mat} renderOrder={-999} frustumCulled={false} />
     </group>
   )

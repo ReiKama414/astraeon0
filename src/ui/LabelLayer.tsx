@@ -20,6 +20,7 @@ export function LabelLayer() {
           ref={(el) => {
             e.el = el
           }}
+          className="astr-label-wrap"
           style={{ position: 'absolute', left: 0, top: 0, opacity: 0 }}
         >
           <div

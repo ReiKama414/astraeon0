@@ -56,7 +56,8 @@ export function focusDistanceFor(o: CelestialObject, scene: SceneRef): number {
 export function minDistanceFor(o: CelestialObject | undefined, scene: SceneRef): number {
   const base = SCALES[scene.kind].minDistance
   if (!o || o.id === scene.hostId) return base
-  if (scene.kind === 'system') return Math.max(sceneRadius(o, scene) * 1.05, 0.05)
+  // bodies can be approached down to a low-orbit altitude (~1.5 % of the radius ≈ 100 km for Earth)
+  if (scene.kind === 'system') return Math.max(sceneRadius(o, scene) * (o.visual.planet?.atmosphere || o.visual.renderer === 'earth' ? 1.016 : 1.03), 0.02)
   if (scene.kind === 'sky') return base
   return Math.max(base * 0.2, sceneRadius(o, scene) * 0.5)
 }
@@ -79,6 +80,8 @@ export function viewQuatFor(o: CelestialObject, scene: SceneRef, target: THREE.V
     // view the disk at the catalogued inclination (angle between line of sight and disk normal)
     return rigQuat(rig.yaw + 0.4, -((90 - o.visual.blackHole.diskInclinationDeg) * Math.PI) / 180)
   }
+  // fantasy nebulae are sculpted as discs/sheets: look from above their plane
+  if (o.id === scene.hostId && o.visual.nebula?.style) return rigQuat(rig.yaw, o.visual.nebula.style === 'veil' ? -0.12 : o.visual.nebula.style === 'river' ? -0.3 : -0.62)
   if (o.id === scene.hostId) return rigQuat(rig.yaw, -(s.defaultElevationDeg * Math.PI) / 180)
   if (scene.kind === 'system' && target.lengthSq() > 1e-6) {
     const toSun = tmpA.copy(target).negate().normalize()

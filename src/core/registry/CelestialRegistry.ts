@@ -3,6 +3,8 @@ import { SOLAR_SYSTEM } from '../data/solarSystem'
 import { DEEP_SPACE } from '../data/deepSpace'
 import { SKY_OBJECTS } from '../data/stars'
 import { SMALL_BODIES } from '../data/smallBodies'
+import { MOONS } from '../data/moons'
+import { DEEP_SPACE_2 } from '../data/deepSpace2'
 import { FANTASY_ROOT, regenerateFromId } from '../procedural/generator'
 
 export interface SceneRef {
@@ -179,4 +181,4 @@ const FANTASY_ROOT_OBJ: CelestialObject = {
   updatedAt: 'procedural',
 }
 
-export const registry = new Registry([...DEEP_SPACE, ...SOLAR_SYSTEM, ...SMALL_BODIES, ...SKY_OBJECTS, FANTASY_ROOT_OBJ])
+export const registry = new Registry([...DEEP_SPACE, ...DEEP_SPACE_2, ...SOLAR_SYSTEM, ...SMALL_BODIES, ...MOONS, ...SKY_OBJECTS, FANTASY_ROOT_OBJ])

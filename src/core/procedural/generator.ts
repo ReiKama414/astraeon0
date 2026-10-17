@@ -26,6 +26,24 @@ export function fantasyName(r: Rng) {
 }
 
 const s36 = (n: number) => (n >>> 0).toString(36)
+
+/** Curated dreamlike palettes [core, arms, star-forming knots] */
+const DREAM_GALAXY: [string, string, string][] = [
+  ['#ffe2c8', '#c8b6ff', '#ff8fc8'], // rose-gold core, lavender arms
+  ['#ffd9b0', '#9fe6ff', '#ff9fd6'], // peach core, aqua arms
+  ['#fff4e6', '#b7a4ff', '#7ff0e0'], // ivory core, violet arms, teal knots
+  ['#ffc9d9', '#ffe7b8', '#b58cff'], // blush core, champagne arms
+  ['#f6e7ff', '#8fb8ff', '#ffb38f'], // pearl core, cornflower arms
+  ['#ffe9c2', '#ff9ec7', '#8fd8ff'], // honey core, sakura arms
+]
+/** Curated dreamlike palettes for fantasy nebulae [c0, c1, c2, c3] */
+const DREAM_NEBULA: string[][] = [
+  ['#ff4fa8', '#7a5cff', '#3fd6ff', '#ffd08a'], // magenta, violet, cyan, gold
+  ['#2fe0c0', '#4a7dff', '#d46bff', '#fff0b8'], // aquamarine, cobalt, orchid
+  ['#ff7a4a', '#ff3f8f', '#9a5cff', '#5fc8ff'], // sunset coral into violet
+  ['#b06bff', '#ff8ad0', '#ffc86a', '#5a8cff'], // amethyst, sakura, amber
+  ['#4fc8ff', '#7affc0', '#ff9ae6', '#fff4c8'], // ice blue, mint, rose
+]
 const p36 = (s: string) => parseInt(s, 36) >>> 0
 
 function hsl(h: number, s: number, l: number) {
@@ -72,6 +90,39 @@ export function chunkGalaxySeeds(cx: number, cy: number, cz: number, universeSee
   return out
 }
 
+/** A chunk may also hold one fantasy nebula (slot 3). */
+export function chunkNebulaSeed(cx: number, cy: number, cz: number, universeSeed = 7): number | null {
+  const r = mulberry32(hashSeed(cx, cy, cz, universeSeed, 313))
+  return r() < 0.45 ? packGalaxySeed(cx, cy, cz, 3, hashSeed(cx, cy, cz, 3, universeSeed) & 63) : null
+}
+
+export function generateNebula(seed: number): CelestialObject {
+  const pos = galaxyPositionFromSeed(seed)
+  const r = mulberry32(hashSeed(seed, 2))
+  const style = pick(r, ['rose', 'veil', 'bloom', 'ring', 'river'] as const)
+  const palette = pick(r, DREAM_NEBULA)
+  const noun = { rose: 'Rose', veil: 'Veil', bloom: 'Bloom', ring: 'Halo', river: 'River' }[style]
+  const zh = { rose: '星薔薇', veil: '極光帷幕', bloom: '綻放星雲', ring: '光環泡', river: '星河流' }[style]
+  const name = `${fantasyName(r)} ${noun}`
+  return {
+    id: `fx-neb-${s36(seed)}`,
+    name,
+    nameZh: `${name}（${zh}）`,
+    type: 'nebula',
+    sourceType: 'fantasy',
+    parentId: FANTASY_ROOT,
+    position: { kind: 'local', x: pos[0] + 140, y: pos[1] + 30, z: pos[2] - 90 },
+    physical: { diameterLy: Math.round(range(r, 20, 400)), extra: { Style: style, Seed: String(seed) } },
+    visual: { renderer: 'nebula', hostsScene: 'nebula', label: true, nebula: { shape: 'fantasy', style, palette, seed, sizePc: 50 } },
+    discoveryStatus: 'fictional',
+    description: `A fictional ${noun.toLowerCase()} nebula, generated from seed ${seed}.`,
+    descriptionZh: `由種子 ${seed} 生成的幻想${zh}。`,
+    dataSource: FICTIONAL_SRC,
+    updatedAt: U,
+    seed,
+  }
+}
+
 /** Random galaxy seed near the origin of the fantasy universe (used by "Discover New World"). */
 export function randomNearbyGalaxySeed(rand: number) {
   const r = mulberry32(rand)
@@ -83,6 +134,7 @@ export function generateGalaxy(seed: number): CelestialObject {
   const r = mulberry32(hashSeed(seed, 1))
   const morph = pick(r, ['spiral', 'spiral', 'barred-spiral', 'barred-spiral', 'elliptical', 'irregular'] as const)
   const hue = r()
+  const dream = pick(r, DREAM_GALAXY)
   const g: GalaxyVisual = {
     morphology: morph,
     arms: morph === 'elliptical' ? 0 : Math.floor(range(r, 2, 6)),
@@ -91,10 +143,10 @@ export function generateGalaxy(seed: number): CelestialObject {
     bulgeRatio: morph === 'elliptical' ? 1 : range(r, 0.05, 0.3),
     diskThickness: morph === 'elliptical' ? 1 : range(r, 0.015, 0.05),
     ellipticity: range(r, 0, 0.4),
-    coreColor: hsl((hue + 0.08) % 1, 0.8, 0.8),
-    armColor: hsl(hue, range(r, 0.5, 0.9), 0.75),
-    dustColor: '#140c10',
-    hiiColor: hsl((hue + 0.5) % 1, 0.9, 0.7),
+    coreColor: dream[0],
+    armColor: r() < 0.8 ? dream[1] : hsl(hue, 0.7, 0.78),
+    dustColor: '#120a14',
+    hiiColor: dream[2],
     inclination: range(r, 0, 70),
     positionAngle: range(r, 0, 180),
     seed,
@@ -195,7 +247,7 @@ export function generateSystem(galSeed: number, index: number, galaxy?: Celestia
   return out
 }
 
-const SURFACES = ['rocky', 'gas', 'ice', 'ocean', 'lava', 'ice-giant', 'gas'] as const
+const SURFACES = ['rocky', 'gas', 'ice', 'ocean', 'lava', 'ice-giant', 'dream-gas', 'crystal', 'biolume', 'dream-gas'] as const
 
 export function generatePlanet(galSeed: number, sysIndex: number, j: number, aAU: number, starTemp: number): CelestialObject {
   const seed = hashSeed(galSeed, sysIndex, j, 777)
@@ -204,14 +256,14 @@ export function generatePlanet(galSeed: number, sysIndex: number, j: number, aAU
   const eqT = starTemp * Math.sqrt(0.00465 / (2 * aAU)) * 0.9
   let surface: PlanetVisual['surface']
   if (eqT > 900) surface = 'lava'
-  else if (aAU > 2.5) surface = pick(r, ['gas', 'ice-giant', 'ice', 'gas'] as const)
-  else if (eqT < 200) surface = pick(r, ['ice', 'ice-giant', 'rocky'] as const)
+  else if (aAU > 2.5) surface = pick(r, ['gas', 'ice-giant', 'ice', 'dream-gas', 'dream-gas', 'crystal'] as const)
+  else if (eqT < 200) surface = pick(r, ['ice', 'ice-giant', 'crystal', 'crystal'] as const)
   else surface = pick(r, SURFACES)
   const hue = r()
-  const big = surface === 'gas' || surface === 'ice-giant'
+  const big = surface === 'gas' || surface === 'ice-giant' || surface === 'dream-gas'
   const radiusEarth = big ? range(r, 3.5, 13) : range(r, 0.4, 2.2)
   const palette = paletteFor(surface, hue, r)
-  const ringed = (big && r() < 0.45) || (!big && r() < 0.08)
+  const ringed = (big && r() < (surface === 'dream-gas' ? 0.75 : 0.45)) || (!big && r() < (surface === 'crystal' ? 0.4 : 0.08))
   const visual: PlanetVisual = {
     surface,
     palette,
@@ -222,6 +274,7 @@ export function generatePlanet(galSeed: number, sysIndex: number, j: number, aAU
     atmosphere: surface === 'lava' && r() < 0.5 ? undefined : { color: hsl((hue + range(r, -0.1, 0.1) + 1) % 1, 0.7, 0.65), density: range(r, 0.3, 1.3), thickness: range(r, 0.02, 0.05) },
     rings: ringed ? { inner: range(r, 1.3, 1.6), outer: range(r, 1.9, 2.8), palette: [hsl(hue, 0.3, 0.75), hsl((hue + 0.1) % 1, 0.25, 0.55), hsl(hue, 0.2, 0.4)], opacity: range(r, 0.4, 0.95), kind: 'fantasy', tiltDeg: range(r, -25, 25) } : undefined,
     craters: surface === 'rocky' || surface === 'ice' ? range(r, 0, 1) : 0,
+    aurora: surface === 'dream-gas' || surface === 'crystal' || surface === 'biolume' || r() < 0.25 ? pick(r, ['#7fffd4', '#ff8fd8', '#9f8cff', '#8fd8ff']) : undefined,
     polarCaps: surface === 'rocky' || surface === 'ocean' ? range(r, 0, 0.25) : 0,
     poleRA: range(r, 0, 360),
     poleDec: range(r, 30, 90),
@@ -257,15 +310,23 @@ export function generatePlanet(galSeed: number, sysIndex: number, j: number, aAU
 }
 
 function surfaceLabel(s: PlanetVisual['surface']) {
-  return ({ rocky: 'Rocky world', gas: 'Gas giant', 'ice-giant': 'Ice giant', ice: 'Ice world', ocean: 'Ocean world', lava: 'Lava world' } as Record<string, string>)[s] ?? 'World'
+  return ({ rocky: 'Rocky world', gas: 'Gas giant', 'ice-giant': 'Ice giant', ice: 'Ice world', ocean: 'Ocean world', lava: 'Lava world', 'dream-gas': 'Pastel gas giant', crystal: 'Crystal world', biolume: 'Bioluminescent ocean world' } as Record<string, string>)[s] ?? 'World'
 }
 function surfaceLabelZh(s: PlanetVisual['surface']) {
-  return ({ rocky: '岩石行星', gas: '氣態巨行星', 'ice-giant': '冰巨行星', ice: '冰凍行星', ocean: '海洋行星', lava: '熔岩行星' } as Record<string, string>)[s] ?? '行星'
+  return ({ rocky: '岩石行星', gas: '氣態巨行星', 'ice-giant': '冰巨行星', ice: '冰凍行星', ocean: '海洋行星', lava: '熔岩行星', 'dream-gas': '粉彩氣態巨行星', crystal: '水晶行星', biolume: '生物發光海洋行星' } as Record<string, string>)[s] ?? '行星'
 }
 
 function paletteFor(s: PlanetVisual['surface'], hue: number, r: Rng): string[] {
   const j = () => range(r, -0.05, 0.05)
   switch (s) {
+    case 'dream-gas': {
+      const p = pick(r, DREAM_NEBULA)
+      return [p[0], p[1], p[2], p[3], p[0]]
+    }
+    case 'crystal':
+      return [hsl((0.55 + hue * 0.3) % 1, 0.55, 0.78), hsl((0.8 + hue * 0.2) % 1, 0.6, 0.72), '#f7fbff', hsl((0.5 + hue * 0.2) % 1, 0.7, 0.5)]
+    case 'biolume':
+      return [hsl(0.6 + j(), 0.75, 0.2), hsl(0.33 + j(), 0.4, 0.3), hsl(0.12, 0.3, 0.55), hsl(0.48 + j(), 1, 0.6)]
     case 'gas':
       return [hsl(hue, 0.45, 0.8), hsl((hue + 0.05 + j() + 1) % 1, 0.5, 0.55), hsl((hue + 0.1) % 1, 0.45, 0.38), hsl(hue, 0.2, 0.9), hsl((hue + 0.95) % 1, 0.5, 0.5)]
     case 'ice-giant':
@@ -309,9 +370,10 @@ export function generateBlackHole(galSeed: number, galaxy: CelestialObject): Cel
 
 /** Regenerate any procedural object (and its siblings) purely from its ID. */
 export function regenerateFromId(id: string): CelestialObject[] | null {
-  const m = id.match(/^fx-(gal|sys|star|pl|bh)-([0-9a-z]+)(?:-(\d+))?(?:-(\d+))?$/)
+  const m = id.match(/^fx-(gal|sys|star|pl|bh|neb)-([0-9a-z]+)(?:-(\d+))?(?:-(\d+))?$/)
   if (!m) return null
   const g = p36(m[2])
+  if (m[1] === 'neb') return [generateNebula(g)]
   const gal = generateGalaxy(g)
   if (m[1] === 'gal') return [gal]
   if (m[1] === 'bh') return [gal, generateBlackHole(g, gal)]

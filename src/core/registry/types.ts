@@ -108,7 +108,9 @@ export type RendererKind =
 export interface PlanetVisual {
   /** optional real imagery (equirectangular, CORS-enabled); procedural maps remain the fallback */
   textureUrl?: string
-  surface: 'rocky' | 'gas' | 'ice-giant' | 'venus' | 'earth' | 'ocean' | 'ice' | 'lava' | 'moon' | 'mars' | 'sun'
+  surface: 'rocky' | 'gas' | 'ice-giant' | 'venus' | 'earth' | 'ocean' | 'ice' | 'lava' | 'moon' | 'mars' | 'sun' | 'dream-gas' | 'crystal' | 'biolume'
+  /** fantasy aurora colour (polar light curtains) */
+  aurora?: string
   palette: string[]
   seed: number
   bands?: number
@@ -162,7 +164,9 @@ export interface BlackHoleVisual {
 }
 
 export interface NebulaVisual {
-  shape: 'orion' | 'crab' | 'eagle' | 'carina' | 'fantasy'
+  shape: 'orion' | 'crab' | 'eagle' | 'carina' | 'fantasy' | 'ring' | 'helix' | 'lagoon' | 'horsehead' | 'pleiades' | 'globular' | 'globular-giant'
+  /** fantasy nebula style */
+  style?: 'rose' | 'veil' | 'bloom' | 'ring' | 'river'
   palette: string[]
   seed: number
   sizePc: number
@@ -213,5 +217,5 @@ export interface CelestialObject {
   updatedAt: string
   seed?: number
   /** member star ids / line segments for constellations */
-  constellation?: { lines: [string, string][]; abbr: string }
+  constellation?: { lines: [string, string][]; abbr: string; polylines?: [number, number][][] }
 }

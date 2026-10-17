@@ -41,6 +41,8 @@ export const rig = {
   zoomPressure: 0,
   lastInput: 0,
   autoRotate: 0,
+  /** extra upward look angle applied in low orbit (radians) */
+  horizonTilt: 0,
   quat: new THREE.Quaternion(),
 }
 

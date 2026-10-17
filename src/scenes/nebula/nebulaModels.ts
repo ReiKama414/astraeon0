@@ -1,5 +1,6 @@
 import type { NebulaVisual } from '../../core/registry/types'
 import { mulberry32, gauss, type Rng } from '../../core/procedural/rng'
+import { planetary, lagoon, horsehead, pleiades, globular, fantasyNebula } from './nebulaModels2'
 
 /**
  * Parametric 3D nebula models. Each returns layered billboard "cloudlets":
@@ -245,6 +246,12 @@ export function buildNebula(v: NebulaVisual, count: number): NebulaBuffers {
   else if (v.shape === 'crab') crab(b, r, count, pal)
   else if (v.shape === 'eagle') eagle(b, r, count, pal)
   else if (v.shape === 'carina') carina(b, r, count, pal)
+  else if (v.shape === 'ring' || v.shape === 'helix') planetary(b, r, count, pal, v.shape === 'helix')
+  else if (v.shape === 'lagoon') lagoon(b, r, count, pal)
+  else if (v.shape === 'horsehead') horsehead(b, r, count, pal)
+  else if (v.shape === 'pleiades') pleiades(b, r, count, pal)
+  else if (v.shape === 'globular' || v.shape === 'globular-giant') globular(b, r, count, v.shape === 'globular-giant')
+  else if (v.style) fantasyNebula(b, r, count, pal, v.style)
   else fantasy(b, r, count, pal)
   return b.build()
 }

@@ -53,7 +53,7 @@ export function App() {
     return (
       <div className="flex h-full items-center justify-center p-8 text-center">
         <div className="max-w-md">
-          <div className="font-display text-4xl tracking-[0.3em]">ASTRALIS</div>
+          <div className="font-display font-semibold text-4xl tracking-[0.3em]">ASTRALIS</div>
           <p className="mt-4 text-sm text-muted">This experience needs WebGL 2, which is unavailable in this browser or has been disabled. Please try a recent version of Chrome, Edge, Firefox or Safari with hardware acceleration enabled.</p>
         </div>
       </div>
@@ -69,7 +69,7 @@ export function App() {
       <HUD />
       <div className={`pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-[#010108] transition-opacity duration-[2600ms] ${intro ? 'opacity-100' : 'opacity-0'}`} style={{ transitionDelay: intro ? '0ms' : '100ms' }}>
         <div className="text-center">
-          <div className="font-display text-5xl font-light tracking-[0.45em] text-ink/90 md:text-6xl">ASTRALIS</div>
+          <div className="font-display font-semibold text-5xl tracking-[0.45em] text-ink/90 md:text-6xl">ASTRALIS</div>
           <div className="mt-3 text-[10px] uppercase tracking-[0.5em] text-muted">Cinematic Universe Explorer</div>
         </div>
       </div>

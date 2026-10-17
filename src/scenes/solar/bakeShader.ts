@@ -5,7 +5,7 @@ import { NOISE } from '../../shaders/noise'
  * so 3D noise is seamless across the dateline and poles.
  * uPass 0 → albedo.rgb | 1 → data (r height, g roughness, b emissive) | 2 → clouds
  */
-export const SURFACE_IDS: Record<string, number> = { rocky: 0, moon: 1, mars: 2, venus: 3, gas: 4, 'ice-giant': 5, ice: 6, lava: 7, ocean: 8, earth: 9, sun: 10 }
+export const SURFACE_IDS: Record<string, number> = { rocky: 0, moon: 1, mars: 2, venus: 3, gas: 4, 'ice-giant': 5, ice: 6, lava: 7, ocean: 8, earth: 9, sun: 10, 'dream-gas': 11, crystal: 12, biolume: 13 }
 
 export const bakeVert = /* glsl */ `
 varying vec2 vUv;
@@ -150,7 +150,7 @@ void main(){
   } else if(uSurface==6){
     // ice worlds: bright plains with dark lineae (Europa) and mottling
     float base = fbm(sp*2.5, 6);
-    float lines = pow(1.0 - abs(snoise(sp*4.0)), 12.0) + pow(1.0 - abs(snoise(sp*9.0+2.0)), 18.0)*0.7;
+    float lines = pow(max(0.0, 1.0 - abs(snoise(sp*4.0))), 12.0) + pow(max(0.0, 1.0 - abs(snoise(sp*9.0+2.0))), 18.0)*0.7;
     float cr = uCraters>0.0 ? craterField(d, 10.0, uSeed)*uCraters*0.3 : 0.0;
     height = 0.5 + base*0.1 + cr*0.1 - lines*0.03;
     albedo = mix(pal(0.3 + base*0.4), uPal1*0.7, clamp(lines,0.0,1.0)*0.7);
@@ -159,7 +159,7 @@ void main(){
   } else if(uSurface==7){
     // lava / volcanic worlds
     float base = fbm(sp*3.0, 6);
-    float cracks = pow(1.0 - abs(snoise(sp*5.0)), 10.0) + pow(1.0 - abs(snoise(sp*12.0)), 14.0)*0.6;
+    float cracks = pow(max(0.0, 1.0 - abs(snoise(sp*5.0))), 10.0) + pow(max(0.0, 1.0 - abs(snoise(sp*12.0))), 14.0)*0.6;
     float spots = smoothstep(0.62, 0.8, hash13(floor(sp*14.0))) * (1.0 - smoothstep(0.0, 0.5, length(fract(sp*14.0)-0.5)));
     height = 0.5 + base*0.2 - cracks*0.05;
     albedo = mix(pal(0.1 + base*0.35), uPal2, 0.2);
@@ -185,6 +185,47 @@ void main(){
     height = 0.5 + land*(0.1 + mtn*0.25*smoothstep(0.02,0.3,cont));
     rough = mix(0.28, 0.9, land);
     rough = mix(rough, 0.6, coldness);
+  } else if(uSurface==11){
+    // pastel dream giant: marbled, heavily domain-warped bands
+    vec3 q = d;
+    vec3 w1 = vec3(fbm(q*1.6 + uSeed, 5), fbm(q*1.6 + uSeed + 7.1, 5), fbm(q*1.6 + uSeed + 3.7, 5));
+    vec3 w2 = vec3(fbm(q*2.4 + w1*1.8, 5), fbm(q*2.4 + w1*1.8 + 5.2, 5), 0.0);
+    float y = sin(lat) * 2.0 + w2.x * 1.1 + w1.y * 0.4;
+    float t = 0.5 + 0.5 * sin(y * uBands * 0.9);
+    albedo = pal(t);
+    albedo = mix(albedo, uPal2, smoothstep(0.55, 0.95, w2.y * 0.5 + 0.5) * 0.35);
+    albedo = mix(albedo, vec3(1.0, 0.96, 0.92), smoothstep(0.82, 1.0, fbm(q*5.0 + w1, 4) * 0.5 + 0.5) * 0.25);
+    albedo *= 0.8;
+    rough = 1.0;
+  } else if(uSurface==12){
+    // crystal world: faceted Voronoi plates with luminous seams
+    vec3 q = d * 7.0;
+    vec3 ip = floor(q);
+    float d1 = 9.0, d2 = 9.0; vec3 cid = vec3(0.0);
+    for(int x=-1;x<=1;x++) for(int y=-1;y<=1;y++) for(int z=-1;z<=1;z++){
+      vec3 c = ip + vec3(x,y,z);
+      vec3 pnt = c + hash33(c + uSeed);
+      float dd = length(q - pnt);
+      if(dd < d1){ d2 = d1; d1 = dd; cid = c; } else if(dd < d2){ d2 = dd; }
+    }
+    float seam = 1.0 - smoothstep(0.0, 0.08, d2 - d1);
+    float tint = hash13(cid + uSeed);
+    albedo = mix(pal(0.15 + tint * 0.45), uPal2, 0.15 + 0.1 * sin(tint * 20.0));
+    albedo = mix(albedo, uPal3, seam * 0.7);
+    height = 0.5 + tint * 0.12 - seam * 0.08;
+    emissive = seam * 0.55;
+    rough = mix(0.12, 0.4, seam);
+  } else if(uSurface==13){
+    // bioluminescent ocean world: dark seas veined with glowing plankton currents
+    float cont = fbm(sp*1.3, 6) - 0.2;
+    float land = smoothstep(-0.02, 0.03, cont);
+    vec3 flow = vec3(fbm(sp*3.0, 4), fbm(sp*3.0 + 4.0, 4), 0.0);
+    float veins = pow(max(0.0, 1.0 - abs(snoise(sp*6.0 + flow*2.0))), 8.0) + pow(max(0.0, 1.0 - abs(snoise(sp*13.0 + flow*3.0))), 12.0)*0.6;
+    vec3 sea = mix(uPal0 * 0.7, uPal0 * 1.2, fbm(sp*4.0, 3)*0.5+0.5);
+    albedo = mix(sea, mix(uPal1, uPal2, fbm(sp*6.0,3)*0.5+0.5), land);
+    emissive = (1.0 - land) * clamp(veins, 0.0, 1.0);
+    height = 0.5 + land * 0.12;
+    rough = mix(0.22, 0.85, land);
   } else if(uSurface==10){
     float g = fbm(sp*20.0, 5);
     albedo = pal(0.5 + g*0.3);

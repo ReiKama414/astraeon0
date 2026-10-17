@@ -71,12 +71,12 @@ export function BottomDock() {
   const tool = (icon: string, label: string, onClick: () => void, active = false) => (
     <button className={`btn-icon group relative ${active ? 'is-active' : ''}`} onClick={onClick} aria-label={label}>
       <Icon name={icon} />
-      <span className="pointer-events-none absolute -top-8 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded-md glass-strong px-2 py-1 text-[11px] text-ink opacity-0 transition-opacity group-hover:opacity-100 md:block">{label}</span>
+      <span className="pointer-events-none absolute -top-9 left-1/2 hidden -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-full glass-strong px-3 py-1 text-[12px] text-ink opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 md:block">{label}</span>
     </button>
   )
   return (
     <div className="absolute bottom-3 left-1/2 flex w-[calc(100vw-16px)] -translate-x-1/2 flex-col items-center gap-2 md:bottom-5 md:w-auto">
-      <div className="pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto rounded-full glass px-2 py-1 scroll-thin">
+      <div className="no-scrollbar pointer-events-auto flex max-w-full items-center gap-1 overflow-x-auto overflow-y-hidden rounded-full glass px-2 py-1 md:overflow-visible">
         <TimeControl />
         <div className="mx-1 h-6 w-px shrink-0 bg-white/10" />
         {tool('route', t('tour', lang), () => startTour())}

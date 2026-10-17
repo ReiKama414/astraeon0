@@ -22,7 +22,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode; label?: stri
     return (
       <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#010108] p-8 text-center">
         <div className="max-w-md">
-          <div className="font-display text-3xl tracking-[0.3em]">ASTRALIS</div>
+          <div className="font-display font-semibold text-3xl tracking-[0.3em]">ASTRALIS</div>
           <p className="mt-4 text-sm leading-relaxed text-muted">
             {zh ? '3D 場景發生錯誤，可能是顯示卡資源不足。請重新載入，或在設定中降低畫質。' : 'The 3D scene hit an error — possibly the GPU ran out of resources. Reload to continue, or lower the quality setting.'}
           </p>

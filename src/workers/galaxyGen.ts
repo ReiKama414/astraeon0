@@ -166,8 +166,8 @@ export function generateGalaxy(g: GalaxyVisual, starCount: number, hazeCount: nu
       if (cat === 5) size *= 1.4
     } else if (cat === 4) {
       col = hii
-      size = 2.2 + rnd() * 3.5
-      bright = 2.4
+      size = 1.2 + rnd() * 1.6
+      bright = 1.6
     } else if (cat === 3) {
       const young = rnd() < 0.45
       const t = young ? 9000 + rnd() * 20000 : 4500 + rnd() * 3500
@@ -190,7 +190,10 @@ export function generateGalaxy(g: GalaxyVisual, starCount: number, hazeCount: nu
     ss[i] = size
   }
   for (let i = 0; i < dustN; i++) {
-    sample(p, 'dust')
+    // dust lanes live in the disk: keep them out of the bright bulge so the core stays luminous
+    let tries = 0
+    do sample(p, 'dust')
+    while (Math.hypot(p[0], p[2]) < R * (bar ? 0.22 : 0.16) && ++tries < 8)
     dp[i * 3] = p[0] * unitsPerKpc
     dp[i * 3 + 1] = p[1] * unitsPerKpc
     dp[i * 3 + 2] = p[2] * unitsPerKpc

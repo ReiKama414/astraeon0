@@ -20,22 +20,23 @@ export function TourOverlay() {
   const total = (tour.step + (transitioning ? 0 : p)) / JOURNEY.length
   return (
     <div className="pointer-events-auto absolute bottom-4 left-1/2 w-[min(560px,calc(100vw-16px))] -translate-x-1/2 md:bottom-8">
-      <div key={tour.step} className="fade-in rounded-2xl glass-strong px-5 pb-4 pt-4">
-        <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-muted">
+      <div className="rounded-[20px] glass-strong px-6 pb-4 pt-5">
+        <div key={tour.step} className="stagger">
+        <div className="eyebrow flex items-center justify-between">
           <span>{t('tour', lang)}</span>
           <span className="tabular-nums">
             {tour.step + 1} / {JOURNEY.length}
           </span>
         </div>
-        <div className="mt-2 font-display text-[28px] leading-tight text-ink">{L(step.title)}</div>
-        <p className="mt-1.5 text-[13px] leading-relaxed text-ink/75">{L(step.text)}</p>
+        <div className="mt-2 font-display font-semibold text-[32px] leading-tight text-ink">{L(step.title)}</div>
+        <p className="mt-2 text-[13.5px] leading-[1.75] text-ink/72">{L(step.text)}</p>
         <div className="mt-4 h-[2px] overflow-hidden rounded bg-white/10">
-          <div className="h-full bg-gradient-to-r from-violet to-cyan transition-[width] duration-200" style={{ width: `${total * 100}%` }} />
+          <div className="h-full bg-ink/70 transition-[width] duration-300 ease-linear" style={{ width: `${total * 100}%` }} />
         </div>
         <div className="mt-3 flex items-center justify-between">
           <div className="flex gap-1">
             {JOURNEY.map((s, i) => (
-              <span key={s.id} className={`h-1 w-4 rounded-full ${i < tour.step ? 'bg-violet/70' : i === tour.step ? 'bg-ink' : 'bg-white/15'}`} />
+              <span key={s.id} className={`h-[3px] rounded-full transition-all duration-700 ${i === tour.step ? 'w-6 bg-ink' : i < tour.step ? 'w-3 bg-ink/45' : 'w-3 bg-white/12'}`} />
             ))}
           </div>
           <div className="flex items-center gap-1">
@@ -49,6 +50,7 @@ export function TourOverlay() {
               <Icon name="stop" size={12} filled /> {lang === 'zh' ? '結束導覽' : 'End tour'}
             </button>
           </div>
+        </div>
         </div>
       </div>
     </div>

@@ -8,6 +8,7 @@ import { sampleOrbit } from '../../core/orbits/kepler'
 import { zUpToThree } from '../../core/coords/UniverseCoordinateSystem'
 import { CelestialMarker } from '../common/CelestialMarker'
 import { BackgroundSky } from '../common/BackgroundSky'
+import { DreamSky } from '../common/DreamSky'
 import { StarBody } from './Star'
 import { PlanetSurface, Atmosphere } from './Planet'
 import { EarthSurface } from './Earth'
@@ -20,48 +21,65 @@ import { useRegistryVersion } from '../useRegistry'
 import { AsteroidBelt } from './AsteroidBelt'
 import { rig } from '../common/cameraRig'
 import { Comet } from './Comet'
+import { GlowLine } from '../common/GlowLine'
 
-function OrbitLine({ obj, hostId, parentRadius }: { obj: CelestialObject; hostId: string; parentRadius?: number }) {
+function OrbitLine({ obj, hostId }: { obj: CelestialObject; hostId: string; parentRadius?: number }) {
   const showOrbits = useApp((s) => s.showOrbits)
   const selected = useApp((s) => s.selectedId === obj.id || s.hoveredId === obj.id)
-  const { geo, mat } = useMemo(() => {
+  const pts = useMemo(() => {
     const p = obj.position
-    if (p.kind !== 'orbit') return { geo: null, mat: null }
+    if (p.kind !== 'orbit') return null
     const parent = registry.get(obj.parentId)
     const isMoon = parent && parent.id !== hostId && parent.type !== 'star-system'
-    let pts: THREE.Vector3[]
+    let out: THREE.Vector3[]
     if (isMoon) {
       const d = presentationMoonDistance(parent!, p.orbit.a)
       if (p.orbit.plane === 'parent-equator') {
         const q = poleQuaternion(parent!.visual.planet)
-        pts = Array.from({ length: 129 }, (_, i) => {
-          const a = (i / 128) * Math.PI * 2
-          return new THREE.Vector3(Math.cos(a) * d, 0, Math.sin(a) * d).applyQuaternion(q)
+        const dirSign = (p.orbit.periodDays ?? 1) < 0 ? -1 : 1
+        out = Array.from({ length: 160 }, (_, i) => {
+          const a = (i / 160) * Math.PI * 2 * dirSign
+          return new THREE.Vector3(Math.cos(a) * d, 0, -Math.sin(a) * d).applyQuaternion(q)
         })
       } else {
         // real (inclined / retrograde) orbital plane, radius compressed to presentation distance
-        pts = sampleOrbit(p.orbit, simClock.jd, 128).map((v) => new THREE.Vector3(...zUpToThree(v)).normalize().multiplyScalar(d))
+        out = sampleOrbit(p.orbit, simClock.jd, 160).map((v) => new THREE.Vector3(...zUpToThree(v)).normalize().multiplyScalar(d))
+        out.pop()
       }
     } else {
       const s = systemAUScale(hostId)
-      pts = sampleOrbit(p.orbit, simClock.jd, obj.type === 'comet' ? 512 : 256).map((v) => new THREE.Vector3(...zUpToThree(v)).multiplyScalar(s))
+      out = sampleOrbit(p.orbit, simClock.jd, obj.type === 'comet' ? 720 : 360).map((v) => new THREE.Vector3(...zUpToThree(v)).multiplyScalar(s))
+      out.pop()
     }
-    const geo = new THREE.BufferGeometry().setFromPoints(pts)
-    const col = obj.sourceType === 'real' ? (obj.type === 'comet' ? '#8fd6ff' : obj.type === 'dwarf-planet' ? '#b0a6d8' : '#8fa4ff') : '#d89cff'
-    const mat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.16, depthWrite: false })
-    return { geo, mat }
-  }, [obj, hostId, parentRadius])
-  useEffect(() => () => (geo?.dispose(), mat?.dispose()), [geo, mat])
-  useFrame(({ camera }) => {
-    if (!mat) return
-    const target = selected ? 0.55 : obj.type === 'moon' ? 0.12 : 0.2
-    // fade orbits that would clutter a close-up
-    // fade orbits when inspecting a body up close
-    const far = THREE.MathUtils.clamp((rig.distance - 4) / 40, 0.04, 1) * THREE.MathUtils.clamp(camera.position.length() / 60, 0.25, 1)
-    mat.opacity += (target * (obj.type === 'moon' ? 1 : far) - mat.opacity) * 0.15
-  })
-  if (!geo || !mat || !showOrbits) return null
-  return <lineLoop geometry={geo} material={mat} />
+    return out
+  }, [obj, hostId])
+  const paths = useMemo(() => (pts ? [pts] : []), [pts])
+  const tmpPos = useMemo(() => new THREE.Vector3(), [])
+  if (!pts || !showOrbits) return null
+  const real = obj.sourceType === 'real'
+  const color = !real ? '#e6b8d9' : obj.type === 'comet' ? '#a9dcff' : obj.type === 'moon' ? '#c9d2ee' : obj.type === 'dwarf-planet' || obj.type === 'asteroid' ? '#c8bde6' : '#d9dcf2'
+  // head = index of the orbit sample nearest to the body's current position
+  const head = () => {
+    relativePosition(obj, hostId, simClock.jd, tmpPos)
+    let best = 0
+    let bd = Infinity
+    for (let i = 0; i < pts.length; i++) {
+      const d = pts[i].distanceToSquared(tmpPos)
+      if (d < bd) {
+        bd = d
+        best = i
+      }
+    }
+    return best / pts.length
+  }
+  const fade = () => {
+    const base = selected ? 2.2 : 1
+    // moon orbits only matter around the planet being inspected
+    if (obj.type === 'moon') return useApp.getState().focusId === obj.parentId || useApp.getState().focusId === obj.id ? base : 0.25 * base
+    // quieter orbits while inspecting a body up close
+    return base * THREE.MathUtils.clamp((rig.distance - 3) / 30, 0.08, 1)
+  }
+  return <GlowLine paths={paths} mode="trail" color={color} width={obj.type === 'moon' ? 2.2 : 3} opacity={obj.type === 'moon' ? 0.2 : 0.34} trailLength={obj.type === 'comet' ? 9 : obj.type === 'moon' ? 7 : 4.5} head={head} fade={fade} />
 }
 
 /** One orbiting body: positions itself every frame, renders surface + atmosphere + its moons. */
@@ -114,7 +132,7 @@ export function SolarSystemScene({ scene }: { scene: SceneRef }) {
 
   return (
     <group>
-      <BackgroundSky frame={host.sourceType === 'real' ? 'ecliptic' : 'galactic'} band starCount={q.backgroundStars} intensity={1} />
+      {host.sourceType === 'real' ? <BackgroundSky frame="ecliptic" band starCount={q.backgroundStars} intensity={1} /> : <DreamSky palette={['#9f8cff', '#ff9fd0', '#8fe8e0']} seed={host.seed ?? 3} starCount={q.backgroundStars} />}
       <ambientLight intensity={0.018} color="#8fa0ff" />
       {stars.map((s, i) => {
         const r = presentationRadius(s)

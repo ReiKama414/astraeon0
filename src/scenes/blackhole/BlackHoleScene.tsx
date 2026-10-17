@@ -28,13 +28,13 @@ function EnvironmentBackdrop({ env }: { env: 'galactic-center' | 'elliptical-cor
             float band = exp(-abs(d.y)/0.35);
             float n = fbm(d*3.0, 6)*0.5+0.5;
             float dust = smoothstep(0.35, 0.75, fbm(d*5.0+2.0, 5)*0.5+0.5) * exp(-abs(d.y)/0.12);
-            col = mix(vec3(0.05,0.03,0.02), vec3(0.55,0.36,0.2), band*(0.5+0.6*n));
-            col *= 1.0 - dust*0.85;
+            col = mix(vec3(0.02,0.022,0.05), vec3(0.62,0.54,0.44), band*(0.5+0.6*n));
+            col = mix(col, vec3(0.01,0.012,0.03), dust*0.85);
             col += vec3(0.4,0.1,0.18) * smoothstep(0.7,0.95,n) * band * 0.3;
           } else if(uEnv == 1){
             // giant elliptical core: smooth golden starlight falling off with angle from the core
             float core = exp(-acos(clamp(d.z,-1.0,1.0))*1.2);
-            col = vec3(0.35,0.26,0.16) * (0.25 + 0.75*core) * (0.85+0.3*fbm(d*4.0,4));
+            col = mix(vec3(0.02,0.02,0.05), vec3(0.5,0.44,0.36), (0.25 + 0.75*core)) * (0.85+0.3*fbm(d*4.0,4));
           } else {
             float n = fbm(d*2.0, 6)*0.5+0.5;
             col = mix(vec3(0.02,0.01,0.05), vec3(0.25,0.08,0.35), smoothstep(0.4,0.9,n));

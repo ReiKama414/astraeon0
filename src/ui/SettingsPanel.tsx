@@ -9,35 +9,36 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
   return (
     <button className="flex w-full items-center justify-between py-1.5 text-[13px]" onClick={() => onChange(!value)} role="switch" aria-checked={value}>
       <span className="text-ink/85">{label}</span>
-      <span className={`relative h-5 w-9 rounded-full transition-colors ${value ? 'bg-violet/60' : 'bg-white/10'}`}>
-        <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-ink transition-all ${value ? 'left-[18px]' : 'left-0.5'}`} />
+      <span className={`relative h-[18px] w-8 rounded-full transition-colors duration-500 ${value ? 'bg-champagne/70' : 'bg-white/10'}`}>
+        <span className={`absolute top-[2px] h-[14px] w-[14px] rounded-full bg-ink shadow transition-all duration-500 ease-[var(--ease-soft)] ${value ? 'left-[16px]' : 'left-[2px]'}`} />
       </span>
     </button>
   )
 }
 
-export function SettingsPanel() {
+export function SettingsPanel({ shown }: { shown: boolean }) {
   const s = useApp()
   const lang = s.lang
   const set = s.set
   const isSky = registry.sceneById(s.sceneId).kind === 'sky'
   const qualities: Quality[] = ['auto', 'low', 'medium', 'high', 'ultra']
   return (
-    <div className="fade-in pointer-events-auto absolute bottom-[84px] left-1/2 z-20 w-[min(360px,calc(100vw-16px))] -translate-x-1/2 rounded-2xl glass-strong px-4 pb-4 pt-3 md:bottom-[92px]">
+    <div className="pointer-events-auto absolute bottom-[84px] left-1/2 z-20 w-[min(360px,calc(100vw-16px))] -translate-x-1/2 md:bottom-[92px]">
+    <div data-shown={shown} className="pop rounded-[18px] glass-strong px-5 pb-4 pt-3.5">
       <div className="mb-2 flex items-center justify-between">
-        <div className="font-display text-lg">{t('settings', lang)}</div>
+        <div className="font-display font-semibold text-[22px]">{t('settings', lang)}</div>
         <button className="btn-icon h-8 w-8" onClick={() => set({ panel: 'none' })} aria-label="Close">
           <Icon name="close" size={15} />
         </button>
       </div>
       <div className="mb-3">
-        <div className="mb-1.5 text-[10px] uppercase tracking-[0.2em] text-faint">{t('quality', lang)}</div>
+        <div className="eyebrow mb-2">{t('quality', lang)}</div>
         <div className="flex gap-1">
           {qualities.map((q) => (
             <button
               key={q}
               onClick={() => set({ quality: q, resolvedQuality: q === 'auto' ? detectQuality() : q })}
-              className={`flex-1 rounded-full py-1.5 text-[11px] capitalize transition-colors ${s.quality === q ? 'bg-white/12 bg-white/10 text-ink' : 'text-muted hover:text-ink'}`}
+              className={`flex-1 rounded-full py-1.5 text-[11px] capitalize transition-colors ${s.quality === q ? 'bg-white/[0.08] text-ink' : 'text-muted hover:text-ink'}`}
             >
               {q}
             </button>
@@ -86,6 +87,7 @@ export function SettingsPanel() {
       <div className="mt-3 border-t border-line pt-2 text-[10.5px] leading-relaxed text-faint">
         {lang === 'zh' ? '操作：拖曳旋轉 · 滾輪縮放 · 右鍵/Shift 平移 · 雙擊前往 · / 搜尋 · F 自由飛行（WASD/QE）· P 攝影 · Backspace 返回上一層' : 'Drag to orbit · scroll to zoom · right-drag/Shift to pan · double-click to travel · / search · F free flight (WASD/QE) · P photo · Backspace up one level'}
       </div>
+    </div>
     </div>
   )
 }

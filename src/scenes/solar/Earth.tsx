@@ -108,6 +108,7 @@ export function EarthSurface({ obj, radius, sunPos, centerRef }: { obj: Celestia
           uCenter: { value: new THREE.Vector3() },
           uCloudShift: { value: 0 },
           uTexel: { value: new THREE.Vector2(1 / 4096, 1 / 2048) },
+          uDetail: { value: 0 },
         },
       }),
     [],
@@ -148,8 +149,12 @@ export function EarthSurface({ obj, radius, sunPos, centerRef }: { obj: Celestia
   }, [tex, fallback, mat, cloudMat])
 
   const pole = useMemo(() => poleQuaternion(v), [v])
-  useFrame(() => {
+  const camTmp = useMemo(() => new THREE.Vector3(), [])
+  useFrame(({ camera }) => {
     if (spin.current) spin.current.rotation.y = spinAngle(v, simClock.jd)
+    centerRef.current?.getWorldPosition(camTmp)
+    const dR = camera.position.distanceTo(camTmp) / radius
+    mat.uniforms.uDetail.value = THREE.MathUtils.clamp((3.2 - dR) / 1.8, 0, 1)
     mat.uniforms.uSunWorld.value.copy(sunPos)
     centerRef.current?.getWorldPosition(mat.uniforms.uCenter.value)
     const shift = (simClock.anim * 0.0008) % 1

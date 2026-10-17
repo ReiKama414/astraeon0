@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import { rig, rigQuat, setYawPitchFromQuat, cameraPositionFor } from './cameraRig'
 import { useApp } from '../../store/useAppStore'
 import { registry } from '../../core/registry/CelestialRegistry'
-import { SCALES } from '../../core/coords/SceneScaleManager'
+import { SCALES, sceneRadius } from '../../core/coords/SceneScaleManager'
 import { currentPosition, enter, goUp } from '../../core/navigation/Navigator'
 
 const smoother = (t: number) => t * t * t * (t * (t * 6 - 15) + 10)
@@ -14,6 +14,7 @@ const right = new THREE.Vector3()
 const up = new THREE.Vector3()
 const fwd = new THREE.Vector3()
 const keys = new Set<string>()
+const xAxis = new THREE.Vector3(1, 0, 0)
 
 function isTyping(e: KeyboardEvent) {
   const t = e.target as HTMLElement | null
@@ -267,9 +268,22 @@ export function CameraController() {
     const target = tmpTarget.copy(rig.target).add(rig.panOffset)
     cameraPositionFor(target, rig.distance, q, cam.position)
     cam.quaternion.copy(q)
+    // low-orbit view: near a solid body, tilt the view up toward the horizon (ISS-like perspective)
+    let altitude = rig.distance
+    if (scene.kind === 'system' && rig.followId && !rig.flight) {
+      const f = registry.get(rig.followId)
+      if (f && f.visual.planet) {
+        const R = sceneRadius(f, scene)
+        altitude = Math.max(1e-4, rig.distance - R)
+        const k = THREE.MathUtils.smoothstep(1.9 - rig.distance / R, 0, 0.75)
+        const horizon = Math.asin(THREE.MathUtils.clamp(R / rig.distance, 0, 1))
+        rig.horizonTilt += (k * horizon * 0.92 - rig.horizonTilt) * (1 - Math.exp(-dt * 5))
+        if (rig.horizonTilt > 1e-4) cam.quaternion.multiply(tmpQ.setFromAxisAngle(xAxis, rig.horizonTilt))
+      } else rig.horizonTilt = 0
+    } else rig.horizonTilt = 0
     // depth range follows the viewing distance to keep precision where it matters
     const sc = SCALES[scene.kind]
-    const near = THREE.MathUtils.clamp(rig.distance * 0.004, sc.near * 0.1, sc.near * 50)
+    const near = THREE.MathUtils.clamp(Math.min(rig.distance, altitude * 1.5) * 0.004, sc.near * 0.02, sc.near * 50)
     if (Math.abs(cam.near - near) / near > 0.05 || cam.far !== sc.far) {
       cam.near = near
       cam.far = sc.far

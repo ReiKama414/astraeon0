@@ -31,7 +31,7 @@ export const SCALES: Record<SceneKind, SceneScale> = {
   nebula: { kind: 'nebula', unitLabel: 'Nebula scaled to fit view', presentation: true, minDistance: 8, maxDistance: 900, defaultDistance: 230, defaultElevationDeg: 10, near: 0.1, far: 1e4 },
   'black-hole': { kind: 'black-hole', unitLabel: '1 unit = 1 Schwarzschild radius (visual simulation)', presentation: false, minDistance: 3.2, maxDistance: 400, defaultDistance: 38, defaultElevationDeg: 8, near: 0.05, far: 5e3 },
   sky: { kind: 'sky', unitLabel: 'Celestial sphere (directions only)', presentation: true, minDistance: 0.01, maxDistance: 3200, defaultDistance: 0.01, defaultElevationDeg: 0, near: 0.01, far: 1e5 },
-  'fantasy-universe': { kind: 'fantasy-universe', unitLabel: 'Fictional sector — arbitrary units', presentation: true, minDistance: 3, maxDistance: 6000, defaultDistance: 900, defaultElevationDeg: 30, near: 0.05, far: 5e4 },
+  'fantasy-universe': { kind: 'fantasy-universe', unitLabel: 'Fictional sector — arbitrary units', presentation: true, minDistance: 3, maxDistance: 8000, defaultDistance: 1300, defaultElevationDeg: 30, near: 0.05, far: 5e4 },
 }
 
 /** North celestial pole expressed in galactic three.js axes. */
@@ -159,7 +159,7 @@ export function sceneRadius(o: CelestialObject, scene: SceneRef): number {
     case 'sky':
       return 12
     case 'fantasy-universe':
-      if (o.visual.galaxy) return o.visual.galaxy.radiusKpc
-      return 100
+      if (o.visual.galaxy) return o.visual.galaxy.radiusKpc * 3
+      return 110
   }
 }

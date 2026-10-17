@@ -25,7 +25,8 @@ void main(){
   float px = aSize * uSize * projectionMatrix[1][1] * uViewportH * 0.5 / depth;
   float a = 1.0;
   if(px < 1.4){ a = px / 1.4; px = 1.4; }
-  if(px > uMaxPx){ a *= uMaxPx / px; px = uMaxPx; }
+  // oversized sprites (camera inside the galaxy) dissolve instead of becoming blobs
+  if(px > uMaxPx){ float k = uMaxPx / px; a *= k * k; px = uMaxPx; }
   // fade stars that pass very close to the camera instead of letting them become blobs
   a *= smoothstep(0.0, uNearFade, depth);
   float h = fract(sin(dot(position.xz, vec2(12.9898,78.233)))*43758.5453);
@@ -54,9 +55,10 @@ varying float vAlpha;
 void main(){
   vec2 c = gl_PointCoord - 0.5;
   float r2 = dot(c,c);
-  float a = exp(-r2*9.0) * vAlpha * uOpacity;
-  if(a < 0.003) discard;
-  gl_FragColor = vec4(vColor, a);
+  float a = exp(-r2*10.0) * vAlpha * uOpacity;
+  if(a < 0.004) discard;
+  // pure absorption: multiply what is behind toward a cool neutral shadow (never adds colour)
+  gl_FragColor = vec4(mix(vec3(1.0), vec3(0.62, 0.66, 0.8), a) * (1.0 - a * 0.45), 1.0);
 }
 `
 
@@ -127,7 +129,7 @@ export function GalaxyRenderer({ galaxy, unitsPerKpc, stars, haze, starSize, int
     () => ({
       stars: makeMat(fragStar, THREE.AdditiveBlending, { uIntensity: { value: intensity } }),
       haze: makeMat(fragStar, THREE.AdditiveBlending, { uIntensity: { value: 0.07 * intensity } }),
-      dust: makeMat(fragDust, THREE.NormalBlending, { uOpacity: { value: 0.5 } }),
+      dust: Object.assign(makeMat(fragDust, THREE.CustomBlending, { uOpacity: { value: 0.32 } }), { blendEquation: THREE.AddEquation, blendSrc: THREE.ZeroFactor, blendDst: THREE.SrcColorFactor }),
     }),
     [intensity],
   )
@@ -154,7 +156,7 @@ export function GalaxyRenderer({ galaxy, unitsPerKpc, stars, haze, starSize, int
       m.uniforms.uTime.value = simClock.anim
       m.uniforms.uNearFade.value = nearFade
       m.uniforms.uSize.value = k === 'haze' ? starSize * 2.6 : k === 'dust' ? starSize * 1.8 : starSize
-      m.uniforms.uMaxPx.value = k === 'haze' ? 600 : k === 'dust' ? 260 : 36
+      m.uniforms.uMaxPx.value = k === 'haze' ? 380 : k === 'dust' ? 110 : 36
       m.uniforms.uTwinkle.value = k === 'stars' ? 0.18 : 0
     }
   })

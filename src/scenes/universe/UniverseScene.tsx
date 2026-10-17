@@ -165,7 +165,7 @@ function FantasySectorPortal() {
 export function UniverseScene() {
   const q = useQuality()
   useRegistryVersion()
-  const galaxies = registry.byType('galaxy').filter((g) => g.sourceType === 'real')
+  const galaxies = registry.byType('galaxy').filter((g) => g.sourceType === 'real' && g.visual.galaxy)
   const groups = registry.byType('galaxy-group').filter((g) => g.sourceType === 'real')
   const [readyCount, setReady] = useState(0)
   useEffect(() => {
@@ -193,6 +193,7 @@ export function UniverseScene() {
                 haze={400}
                 starSize={0.016}
                 intensity={1.4}
+                nearFade={g.visual.galaxy!.radiusKpc * 0.04}
                 onReady={isMW ? () => setReady((c) => c + 1) : undefined}
               />
             </group>

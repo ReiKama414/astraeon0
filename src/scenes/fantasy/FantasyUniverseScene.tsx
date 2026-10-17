@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { registry, type SceneRef } from '../../core/registry/CelestialRegistry'
-import { chunkGalaxySeeds, generateGalaxy, FANTASY_CHUNK_SIZE } from '../../core/procedural/generator'
+import { chunkGalaxySeeds, chunkNebulaSeed, generateGalaxy, generateNebula, FANTASY_CHUNK_SIZE } from '../../core/procedural/generator'
 import { galaxyOrientation, positionInScene } from '../../core/coords/SceneScaleManager'
 import { retain, release } from '../../core/registry/SceneStreamingManager'
 import { GalaxyRenderer } from '../galaxy/GalaxyRenderer'
 import { CelestialMarker } from '../common/CelestialMarker'
-import { BackgroundSky } from '../common/BackgroundSky'
+import { DreamSky } from '../common/DreamSky'
+import { NebulaRenderer } from '../nebula/NebulaScene'
 import { rig } from '../common/cameraRig'
 import { useQuality } from '../useQuality'
 import { signalSceneReady } from '../../core/navigation/Navigator'
@@ -49,7 +50,8 @@ export function FantasyUniverseScene({ scene }: { scene: SceneRef }) {
         for (let z = cz - LOAD_RADIUS; z <= cz + LOAD_RADIUS; z++) {
           const k = `${x},${z}`
           if (next.has(k)) continue
-          next.set(k, chunkGalaxySeeds(x, 0, z).map((s) => generateGalaxy(s)))
+          const neb = chunkNebulaSeed(x, 0, z)
+          next.set(k, [...chunkGalaxySeeds(x, 0, z).map((s) => generateGalaxy(s)), ...(neb !== null ? [generateNebula(neb)] : [])])
         }
       const all = [...next.values()].flat()
       registry.upsert(all)
@@ -58,18 +60,27 @@ export function FantasyUniverseScene({ scene }: { scene: SceneRef }) {
     })
   })
 
-  const galaxies = useMemo(() => [...chunks.values()].flat(), [chunks])
-  // galaxies discovered via seeds outside the loaded grid (favorites, "Discover New World")
-  const extra = registry.childrenOf('fantasy-universe').filter((g) => !galaxies.some((x) => x.id === g.id))
-  const list = [...galaxies, ...extra]
+  const streamed = useMemo(() => [...chunks.values()].flat(), [chunks])
+  // objects discovered via seeds outside the loaded grid (favorites, "Discover New World")
+  const extra = registry.childrenOf('fantasy-universe').filter((g) => !streamed.some((x) => x.id === g.id))
+  const all = [...streamed, ...extra]
+  const list = all.filter((o) => o.visual.galaxy)
+  const nebulae = all.filter((o) => o.visual.nebula)
 
   return (
     <group>
-      <BackgroundSky band={false} starCount={Math.floor(q.backgroundStars * 0.5)} intensity={1.2} starScale={0.8} />
+      <DreamSky palette={['#9f8cff', '#ff8fc8', '#7fe8e0']} seed={7} starCount={Math.floor(q.backgroundStars * 0.6)} />
+      {nebulae.map((n) => (
+        <CelestialMarker key={n.id} obj={n} position={positionInScene(n, scene)} pickRadius={110} labelMaxDistance={2400} labelMinDistance={90}>
+          <group scale={1.5} rotation={[0.62, 0.3, 0.08]}>
+            <NebulaRenderer visual={n.visual.nebula!} sprites={Math.floor(q.nebulaSprites * 0.22)} />
+          </group>
+        </CelestialMarker>
+      ))}
       {list.map((g) => (
-        <CelestialMarker key={g.id} obj={g} position={positionInScene(g, scene)} pickRadius={g.visual.galaxy!.radiusKpc * 1.1} labelMaxDistance={900} labelMinDistance={g.visual.galaxy!.radiusKpc * 1.5}>
+        <CelestialMarker key={g.id} obj={g} position={positionInScene(g, scene)} pickRadius={g.visual.galaxy!.radiusKpc * 3.2} labelMaxDistance={2200} labelMinDistance={g.visual.galaxy!.radiusKpc * 4}>
           <group quaternion={galaxyOrientation(g)}>
-            <GalaxyRenderer galaxy={g.visual.galaxy!} unitsPerKpc={1} stars={Math.floor(q.farGalaxyStars * 0.8)} haze={250} starSize={0.12} intensity={1.1} />
+            <GalaxyRenderer galaxy={g.visual.galaxy!} unitsPerKpc={3} stars={Math.floor(q.farGalaxyStars * 1.1)} haze={600} starSize={0.34} intensity={1.15} nearFade={g.visual.galaxy!.radiusKpc} />
           </group>
         </CelestialMarker>
       ))}

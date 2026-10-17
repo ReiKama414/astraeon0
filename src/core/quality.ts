@@ -2,6 +2,7 @@ import type { ResolvedQuality } from '../store/useAppStore'
 
 export interface QualityProfile {
   dpr: [number, number]
+  msaa: number
   galaxyStars: number
   galaxyHaze: number
   farGalaxyStars: number
@@ -18,10 +19,10 @@ export interface QualityProfile {
 }
 
 export const QUALITY: Record<ResolvedQuality, QualityProfile> = {
-  low: { dpr: [0.6, 1], galaxyStars: 70000, galaxyHaze: 2500, farGalaxyStars: 5000, backgroundStars: 9000, cosmicWeb: 30000, textureSize: 512, sphereSegments: 48, nebulaSprites: 2200, bhSteps: 90, bloom: true, bloomLevels: 4, smaa: false, asteroidCount: 2500 },
-  medium: { dpr: [0.75, 1.25], galaxyStars: 160000, galaxyHaze: 5000, farGalaxyStars: 9000, backgroundStars: 16000, cosmicWeb: 60000, textureSize: 1024, sphereSegments: 72, nebulaSprites: 4500, bhSteps: 140, bloom: true, bloomLevels: 5, smaa: false, asteroidCount: 5000 },
-  high: { dpr: [1, 1.75], galaxyStars: 320000, galaxyHaze: 9000, farGalaxyStars: 16000, backgroundStars: 26000, cosmicWeb: 110000, textureSize: 2048, sphereSegments: 128, nebulaSprites: 8000, bhSteps: 200, bloom: true, bloomLevels: 6, smaa: true, asteroidCount: 9000 },
-  ultra: { dpr: [1, 2], galaxyStars: 600000, galaxyHaze: 14000, farGalaxyStars: 26000, backgroundStars: 40000, cosmicWeb: 180000, textureSize: 4096, sphereSegments: 192, nebulaSprites: 13000, bhSteps: 280, bloom: true, bloomLevels: 7, smaa: true, asteroidCount: 15000 },
+  low: { msaa: 0, dpr: [0.75, 1], galaxyStars: 70000, galaxyHaze: 2500, farGalaxyStars: 5000, backgroundStars: 9000, cosmicWeb: 30000, textureSize: 512, sphereSegments: 48, nebulaSprites: 2200, bhSteps: 90, bloom: true, bloomLevels: 4, smaa: false, asteroidCount: 2500 },
+  medium: { msaa: 2, dpr: [1, 1.5], galaxyStars: 160000, galaxyHaze: 5000, farGalaxyStars: 9000, backgroundStars: 16000, cosmicWeb: 60000, textureSize: 1024, sphereSegments: 72, nebulaSprites: 4500, bhSteps: 140, bloom: true, bloomLevels: 5, smaa: false, asteroidCount: 5000 },
+  high: { msaa: 4, dpr: [1, 2], galaxyStars: 320000, galaxyHaze: 9000, farGalaxyStars: 16000, backgroundStars: 26000, cosmicWeb: 110000, textureSize: 2048, sphereSegments: 128, nebulaSprites: 8000, bhSteps: 200, bloom: true, bloomLevels: 6, smaa: true, asteroidCount: 9000 },
+  ultra: { msaa: 4, dpr: [1, 2], galaxyStars: 600000, galaxyHaze: 14000, farGalaxyStars: 26000, backgroundStars: 40000, cosmicWeb: 180000, textureSize: 4096, sphereSegments: 192, nebulaSprites: 13000, bhSteps: 280, bloom: true, bloomLevels: 7, smaa: true, asteroidCount: 15000 },
 }
 
 /** Rough device capability probe used to resolve "auto". */

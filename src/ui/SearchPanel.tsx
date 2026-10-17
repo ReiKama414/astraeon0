@@ -7,7 +7,7 @@ import { displayName, t, typeLabel } from './i18n'
 import { SourceBadge } from './InfoPanel'
 import { useRegistryVersion } from '../scenes/useRegistry'
 
-export function SearchPanel() {
+export function SearchPanel({ shown }: { shown: boolean }) {
   const lang = useApp((s) => s.lang)
   const [q, setQ] = useState('')
   const [filter, setFilter] = useState<'all' | 'real' | 'fictional'>('all')
@@ -23,8 +23,8 @@ export function SearchPanel() {
     travelTo(id)
   }
   return (
-    <div className="pointer-events-auto absolute inset-0 flex justify-center bg-black/30 px-3 pt-16 md:pt-20" onPointerDown={(e) => e.target === e.currentTarget && close()}>
-      <div className="fade-in flex max-h-[70vh] w-full max-w-[560px] flex-col overflow-hidden rounded-2xl glass-strong">
+    <div data-shown={shown} className="veil pointer-events-auto absolute inset-0 flex justify-center bg-black/35 px-3 pt-16 md:pt-24" onPointerDown={(e) => e.target === e.currentTarget && close()}>
+      <div data-shown={shown} className="pop from-top flex max-h-[70vh] w-full max-w-[560px] flex-col self-start overflow-hidden rounded-[18px] glass-strong">
         <div className="flex items-center gap-3 border-b border-line px-4 py-3">
           <Icon name="search" size={18} className="text-muted" />
           <input
@@ -37,7 +37,7 @@ export function SearchPanel() {
               if (e.key === 'Enter' && hits[active]) go(hits[active].obj.id)
             }}
             placeholder={lang === 'zh' ? '地球、Mars、M31、人馬座 A*、星雲…' : 'Earth, 地球, M31, Sagittarius A*, nebula…'}
-            className="flex-1 bg-transparent text-[15px] text-ink outline-none placeholder:text-faint"
+            className="flex-1 bg-transparent font-display font-semibold text-[20px] text-ink outline-none placeholder:text-faint"
           />
           <button className="btn-icon h-8 w-8" onClick={close} aria-label="Close">
             <Icon name="close" size={16} />
@@ -45,17 +45,17 @@ export function SearchPanel() {
         </div>
         <div className="flex gap-1.5 border-b border-line px-4 py-2">
           {(['all', 'real', 'fictional'] as const).map((f) => (
-            <button key={f} onClick={() => setFilter(f)} className={`rounded-full px-3 py-1 text-[11px] tracking-wide transition-colors ${filter === f ? 'bg-white/10 text-ink' : 'text-muted hover:text-ink'}`}>
+            <button key={f} onClick={() => setFilter(f)} className={`rounded-full px-3 py-1 text-[12px] transition-colors duration-300 ${filter === f ? 'bg-white/[0.07] text-ink' : 'text-muted hover:text-ink'}`}>
               {f === 'all' ? (lang === 'zh' ? '全部' : 'All') : t(f === 'real' ? 'real' : 'fictional', lang)}
             </button>
           ))}
         </div>
-        <div className="scroll-thin min-h-0 overflow-y-auto py-1">
+        <div key={q + filter} className="scroll-thin stagger min-h-0 overflow-y-auto py-1">
           {hits.length === 0 && <div className="px-4 py-6 text-center text-sm text-muted">{t('noResults', lang)}</div>}
           {hits.map((h, i) => (
-            <button key={h.obj.id} onMouseEnter={() => setActive(i)} onClick={() => go(h.obj.id)} className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors ${i === active ? 'bg-white/[0.06]' : ''}`}>
+            <button key={h.obj.id} onMouseEnter={() => setActive(i)} onClick={() => go(h.obj.id)} className={`flex w-full items-center gap-3 px-5 py-2.5 text-left transition-colors duration-300 ${i === active ? 'bg-white/[0.045]' : ''}`}>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[14px] text-ink">
+                <div className="truncate text-[14px] font-normal text-ink">
                   {displayName(h.obj, lang)}
                   {lang === 'zh' && h.obj.nameZh && h.obj.nameZh !== h.obj.name && <span className="ml-2 text-xs text-faint">{h.obj.name}</span>}
                   {lang === 'en' && h.obj.nameZh && <span className="ml-2 text-xs text-faint">{h.obj.nameZh}</span>}

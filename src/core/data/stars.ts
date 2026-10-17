@@ -1,5 +1,7 @@
 import type { CelestialObject, DataSourceRef } from '../registry/types'
 import { dmsToDeg, hmsToDeg, PC_IN_LY } from '../coords/UniverseCoordinateSystem'
+import skyJson from './generated/sky.json'
+import { CONSTELLATION_INFO } from './constellationInfo'
 
 const U = '2025-01-15'
 const HIP: DataSourceRef = { name: 'Hipparcos / SIMBAD (CDS) — positions J2000, V magnitudes, B−V', url: 'https://simbad.u-strasbg.fr/', license: 'Free use with acknowledgement' }
@@ -75,42 +77,8 @@ export const STAR_ROWS: Row[] = [
   ['acrux', 'Acrux', '十字架二', '', 12, 26, 35.9, -63, 5, 56.7, 0.76, -0.24, 320, 'B0.5 IV'],
 ]
 
-const CONSTELLATIONS: { id: string; name: string; zh: string; abbr: string; lines: [string, string][]; desc: string; descZh: string }[] = [
-  {
-    id: 'orion', name: 'Orion', zh: '獵戶座', abbr: 'Ori',
-    lines: [['betelgeuse', 'bellatrix'], ['meissa', 'betelgeuse'], ['meissa', 'bellatrix'], ['betelgeuse', 'alnitak'], ['bellatrix', 'mintaka'], ['mintaka', 'alnilam'], ['alnilam', 'alnitak'], ['alnitak', 'saiph'], ['mintaka', 'rigel']],
-    desc: 'The Hunter — one of the most recognisable constellations, straddling the celestial equator. Its belt stars and the Orion Nebula lie in the Orion molecular cloud complex.',
-    descZh: '獵人座——橫跨天球赤道、最易辨認的星座之一。其腰帶三星與獵戶座大星雲位於獵戶座分子雲複合體中。',
-  },
-  {
-    id: 'ursa-major', name: 'Ursa Major', zh: '大熊座', abbr: 'UMa',
-    lines: [['dubhe', 'merak'], ['merak', 'phecda'], ['phecda', 'megrez'], ['megrez', 'dubhe'], ['megrez', 'alioth'], ['alioth', 'mizar'], ['mizar', 'alkaid']],
-    desc: 'The Great Bear. Its seven brightest stars form the Big Dipper (Northern Dipper, 北斗七星); five of them belong to the Ursa Major Moving Group.',
-    descZh: '大熊座，其七顆亮星組成北斗七星，其中五顆屬於大熊座移動星群。',
-  },
-  {
-    id: 'cassiopeia', name: 'Cassiopeia', zh: '仙后座', abbr: 'Cas',
-    lines: [['caph', 'schedar'], ['schedar', 'navi'], ['navi', 'ruchbah'], ['ruchbah', 'segin']],
-    desc: 'The Queen, whose five brightest stars trace a distinctive "W" near the north celestial pole.',
-    descZh: '皇后座，五顆亮星在北天極附近排成醒目的「W」形。',
-  },
-  {
-    id: 'scorpius', name: 'Scorpius', zh: '天蠍座', abbr: 'Sco',
-    lines: [['acrab', 'dschubba'], ['dschubba', 'fang'], ['dschubba', 'alniyat'], ['alniyat', 'antares'], ['antares', 'paikauhale'], ['paikauhale', 'larawag'], ['larawag', 'mu1-sco'], ['mu1-sco', 'zeta2-sco'], ['zeta2-sco', 'eta-sco'], ['eta-sco', 'sargas'], ['sargas', 'iota1-sco'], ['iota1-sco', 'kappa-sco'], ['kappa-sco', 'shaula'], ['shaula', 'lesath']],
-    desc: 'The Scorpion, a zodiac constellation lying toward the Galactic Center, with the red supergiant Antares as its heart.',
-    descZh: '天蠍座，位於銀河中心方向的黃道星座，紅超巨星心宿二是它的心臟。',
-  },
-  {
-    id: 'cygnus', name: 'Cygnus', zh: '天鵝座', abbr: 'Cyg',
-    lines: [['deneb', 'sadr'], ['sadr', 'eta-cyg'], ['eta-cyg', 'albireo'], ['fawaris', 'sadr'], ['sadr', 'gienah-cyg'], ['gienah-cyg', 'zeta-cyg']],
-    desc: 'The Swan, flying along the Milky Way. Its brightest stars form the Northern Cross; Deneb is one of the most luminous stars known.',
-    descZh: '天鵝座沿著銀河飛翔，亮星組成北十字，天津四是已知光度最高的恆星之一。',
-  },
-]
-
-function bvToColor(bv: number): string {
-  // Ballesteros (2012) B−V → temperature, then approximate blackbody RGB
-  const t = 4600 * (1 / (0.92 * bv + 1.7) + 1 / (0.92 * bv + 0.62))
+export function bvToColor(bv: number): string {
+  const t = bvToTemperature(bv)
   const [r, g, b] = kelvinToRgb(t)
   const h = (x: number) => Math.round(Math.max(0, Math.min(1, x)) * 255).toString(16).padStart(2, '0')
   return `#${h(r)}${h(g)}${h(b)}`
@@ -131,9 +99,198 @@ export function kelvinToRgb(k: number): [number, number, number] {
   return [r / 255, g / 255, b / 255].map((v) => Math.max(0, Math.min(1, v))) as [number, number, number]
 }
 
+/** Ballesteros (2012) B−V → effective temperature */
 export function bvToTemperature(bv: number) {
   return 4600 * (1 / (0.92 * bv + 1.7) + 1 / (0.92 * bv + 0.62))
 }
+
+// ---------------------------------------------------------------------------------------------
+// Full-sky catalogue generated from d3-celestial (see scripts/build-sky-data.mjs)
+// ---------------------------------------------------------------------------------------------
+export interface SkyData {
+  stars: [number, number, number, number, number][]
+  starNames: Record<string, [string, string, string, string]>
+  constellations: { id: string; en: string; zh: string; gen: string; rank: number; center: [number, number]; brightest: number | null; lines: [number, number][][] }[]
+  dsos: { id: string; desig: string; alt: string; type: string; mag: number; dim: string; ra: number; dec: number }[]
+}
+export const SKY = skyJson as unknown as SkyData
+
+const D3C: DataSourceRef = { name: 'd3-celestial catalogue (Hipparcos / Yale BSC, IAU figures) — Olaf Frohn', url: 'https://github.com/ofrohn/d3-celestial', license: 'BSD-3-Clause' }
+const LEGACY_IDS: Record<string, string> = { Ori: 'orion', UMa: 'ursa-major', Cas: 'cassiopeia', Sco: 'scorpius', Cyg: 'cygnus' }
+export const constellationId = (abbr: string) => LEGACY_IDS[abbr] ?? `con-${abbr.toLowerCase()}`
+
+const seenCon = new Set<string>()
+const CONS = SKY.constellations.filter((c) => (seenCon.has(c.id) ? false : (seenCon.add(c.id), true)))
+const conByAbbr = new Map(CONS.map((c) => [c.id, c]))
+
+// curated rows (with distances & spectral types) keyed by nearest catalogue star
+const curatedByHip = new Map<number, Row>()
+for (const row of STAR_ROWS) {
+  const [, , , , h, m, s, d, dm, ds] = row
+  const raDeg = hmsToDeg(h, m, s)
+  const decDeg = dmsToDeg(d, dm, ds)
+  let best: number | null = null
+  let bd = 0.25
+  for (const st of SKY.stars) {
+    const dd = Math.hypot((((st[1] - raDeg + 540) % 360) - 180) * Math.cos((decDeg * Math.PI) / 180), st[2] - decDeg)
+    if (dd < bd) {
+      bd = dd
+      best = st[0]
+    }
+  }
+  if (best !== null) curatedByHip.set(best, row)
+}
+
+const MESSIER_ZH: Record<string, string> = {
+  M2: '寶瓶座球狀星團', M3: '獵犬座球狀星團', M4: '天蠍座球狀星團', M6: '蝴蝶星團', M7: '托勒密星團', M8: '礁湖星雲', M11: '野鴨星團', M13: '武仙座大星團', M17: 'ω 星雲（天鵝星雲）', M20: '三裂星雲', M22: '人馬座球狀星團',
+  M24: '人馬座恆星雲', M27: '啞鈴星雲', M32: 'M32 矮橢圓星系', M35: '雙子座星團', M41: '大犬座星團', M43: '德梅朗星雲', M44: '蜂巢星團', M45: '昴宿星團', M47: '船尾座星團', M49: '室女座橢圓星系', M51: '渦狀星系', M57: '環狀星雲',
+  M63: '向日葵星系', M64: '黑眼星系', M65: 'M65 獅子座三重星系', M66: 'M66 獅子座三重星系', M74: '幻影星系', M76: '小啞鈴星雲', M77: '鯨魚座 A', M78: 'M78 反射星雲', M82: '雪茄星系', M83: '南風車星系', M97: '夜梟星雲', M110: 'M110 矮橢圓星系',
+}
+const DSO_TYPE: Record<string, [CelestialObject['type'], string, string]> = {
+  gc: ['star-cluster', 'Globular cluster', '球狀星團'],
+  oc: ['star-cluster', 'Open cluster', '疏散星團'],
+  s: ['galaxy', 'Spiral galaxy', '螺旋星系'],
+  e: ['galaxy', 'Elliptical galaxy', '橢圓星系'],
+  i: ['galaxy', 'Irregular galaxy', '不規則星系'],
+  pn: ['nebula', 'Planetary nebula', '行星狀星雲'],
+  snr: ['nebula', 'Supernova remnant', '超新星殘骸'],
+  sfr: ['nebula', 'Star-forming region', '恆星形成區'],
+  rn: ['nebula', 'Reflection nebula', '反射星雲'],
+  pos: ['star-cluster', 'Asterism / double star', '星群／雙星'],
+}
+/** Messier objects that already have a dedicated 3D scene elsewhere in the registry. */
+const MESSIER_IN_3D: Record<string, string> = { M1: 'm1', M8: 'm8', M13: 'm13', M16: 'm16', M31: 'm31', M33: 'm33', M42: 'm42', M45: 'm45', M51: 'm51', M57: 'm57', M81: 'm81', M82: 'm82', M83: 'm83', M87: 'm87', M101: 'm101', M104: 'm104' }
+export const messierAlias = (m: string) => MESSIER_IN_3D[m]
+
+function conOfPoint(raDeg: number, decDeg: number): string {
+  // nearest constellation figure vertex — good enough for labelling a star/DSO's constellation
+  let best = ''
+  let bd = Infinity
+  for (const c of CONS)
+    for (const pl of c.lines)
+      for (const [a, d] of pl) {
+        const dd = Math.hypot((((a - raDeg + 540) % 360) - 180) * Math.cos((decDeg * Math.PI) / 180), d - decDeg)
+        if (dd < bd) {
+          bd = dd
+          best = c.id
+        }
+      }
+  return best
+}
+
+const starObjects: CelestialObject[] = []
+const starIdByHip = new Map<number, string>()
+for (const [hipStr, [en, zh, bayer, con]] of Object.entries(SKY.starNames)) {
+  const hip = +hipStr
+  const st = SKY.stars.find((s) => s[0] === hip)
+  if (!st) continue
+  const cur = curatedByHip.get(hip)
+  const [, raDeg, decDeg, vmag, bv] = st
+  const conDef = conByAbbr.get(con)
+  const displayEn = cur ? cur[1] : en || `${bayer} ${conDef?.gen ?? con}`.trim()
+  const displayZh = cur ? cur[2] : zh || undefined
+  const ly = cur ? cur[12] : null
+  const sp = cur ? cur[13] : undefined
+  const id = cur ? cur[0] : `hip-${hip}`
+  starIdByHip.set(hip, id)
+  const conName = conDef ? conDef.en : ''
+  starObjects.push({
+    id,
+    name: displayEn,
+    nameZh: displayZh,
+    aliases: [`HIP ${hip}`, ...(bayer && conDef ? [`${bayer} ${conDef.gen}`, `${bayer} ${con}`] : [])],
+    type: 'star',
+    sourceType: 'real',
+    parentId: conDef ? constellationId(con) : 'celestial-sphere',
+    position: { kind: 'equatorial', raDeg, decDeg, distancePc: ly ? ly / PC_IN_LY : 0 },
+    physical: {
+      apparentMagnitude: vmag,
+      distanceLy: ly ?? undefined,
+      spectralType: sp,
+      temperatureK: Math.round(bvToTemperature(bv) / 10) * 10,
+      extra: { 'B−V colour index': bv.toFixed(2), 'Hipparcos': String(hip), ...(bayer ? { Designation: `${bayer} ${conDef?.gen ?? con}` } : {}) },
+    },
+    visual: { renderer: 'star', starColor: bvToColor(bv), magnitude: vmag },
+    discoveryStatus: 'confirmed',
+    description: `${displayEn}${sp ? ` (${sp})` : ''}, apparent magnitude ${vmag.toFixed(2)}${conName ? `, in ${conName}` : ''}.${ly ? ` About ${ly.toLocaleString('en-US')} light-years away.` : ''}`,
+    descriptionZh: `${displayZh ?? displayEn}${sp ? `（${sp}）` : ''}，視星等 ${vmag.toFixed(2)}${conDef ? `，位於${conDef.zh}` : ''}。${ly ? `距離約 ${ly.toLocaleString('en-US')} 光年。` : ''}`,
+    dataSource: cur ? [HIP, D3C] : [D3C],
+    updatedAt: '2026-09-26',
+  })
+}
+// curated bright field stars not in the named list (safety)
+for (const row of STAR_ROWS) {
+  if (starObjects.some((o) => o.id === row[0])) continue
+  const [id, name, zh, , h, m, s, d, dm, ds, vmag, bv, ly, sp] = row
+  starObjects.push({
+    id, name, nameZh: zh, type: 'star', sourceType: 'real', parentId: 'celestial-sphere',
+    position: { kind: 'equatorial', raDeg: hmsToDeg(h, m, s), decDeg: dmsToDeg(d, dm, ds), distancePc: ly ? ly / PC_IN_LY : 0 },
+    physical: { apparentMagnitude: vmag, distanceLy: ly ?? undefined, spectralType: sp, temperatureK: Math.round(bvToTemperature(bv) / 10) * 10 },
+    visual: { renderer: 'star', starColor: bvToColor(bv), magnitude: vmag },
+    discoveryStatus: 'confirmed', description: `${name} (${sp}), apparent magnitude ${vmag.toFixed(2)}.`, descriptionZh: `${zh}（${sp}），視星等 ${vmag.toFixed(2)}。`, dataSource: [HIP], updatedAt: U,
+  })
+}
+
+const constellationObjects: CelestialObject[] = CONS.map((c) => {
+  const info = CONSTELLATION_INFO[c.id]
+  const brightest = c.brightest ? SKY.starNames[String(c.brightest)] : undefined
+  const bStar = c.brightest ? SKY.stars.find((s) => s[0] === c.brightest) : undefined
+  const bName = brightest ? brightest[0] || `${brightest[2]} ${c.gen}` : undefined
+  const bNameZh = brightest ? brightest[1] || bName : undefined
+  const figureStars = c.lines.reduce((n, l) => n + l.length, 0)
+  return {
+    id: constellationId(c.id),
+    name: c.en,
+    nameZh: c.zh,
+    aliases: [c.id, c.gen],
+    type: 'constellation',
+    sourceType: 'real',
+    parentId: 'celestial-sphere',
+    position: { kind: 'equatorial', raDeg: c.center[0], decDeg: c.center[1], distancePc: 0 },
+    physical: {
+      extra: {
+        'IAU abbreviation': c.id,
+        Genitive: c.gen,
+        ...(bName ? { 'Brightest star': `${bName}${bStar ? ` (mag ${bStar[3].toFixed(2)})` : ''}` } : {}),
+        ...(info?.season ? { 'Best seen': info.season[0] } : {}),
+        'Stick figure': 'Viewpoint-dependent pattern — stars lie at very different distances',
+      },
+    },
+    visual: { renderer: 'constellation' },
+    discoveryStatus: 'confirmed',
+    description: info?.en ?? `${c.en} (${c.gen}), one of the 88 IAU constellations.${bName ? ` Its brightest figure star is ${bName}.` : ''} Its traditional stick figure links ${figureStars} points.`,
+    descriptionZh: info?.zh ?? `${c.zh}，國際天文聯合會定義的 88 個星座之一。${bNameZh ? `連線中最亮的恆星是${bNameZh}。` : ''}`,
+    dataSource: [D3C, { name: 'IAU constellation names & boundaries', license: 'Public' }],
+    updatedAt: '2026-09-26',
+    constellation: { abbr: c.id, lines: [], polylines: c.lines },
+  }
+})
+
+const dsoObjects: CelestialObject[] = SKY.dsos
+  .filter((d) => !MESSIER_IN_3D[d.id])
+  .map((d) => {
+    const [type, tEn, tZh] = DSO_TYPE[d.type] ?? ['nebula', 'Deep-sky object', '深空天體']
+    const con = conByAbbr.get(conOfPoint(d.ra, d.dec))
+    const name = d.alt ? `${d.alt}` : d.id
+    const zh = MESSIER_ZH[d.id] ?? `梅西耶 ${d.id.slice(1)}`
+    return {
+      id: d.id.toLowerCase(),
+      name,
+      nameZh: zh,
+      aliases: [d.id, d.desig, `Messier ${d.id.slice(1)}`].filter(Boolean),
+      type,
+      sourceType: 'real',
+      parentId: 'celestial-sphere',
+      position: { kind: 'equatorial', raDeg: d.ra, decDeg: d.dec, distancePc: 0 },
+      physical: { apparentMagnitude: d.mag, morphology: tEn, extra: { Catalogue: `${d.id} · ${d.desig}`, Kind: tEn, 'Apparent size': `${d.dim}′`, ...(con ? { Constellation: con.en } : {}) } },
+      visual: { renderer: 'none', magnitude: d.mag },
+      discoveryStatus: 'confirmed',
+      description: `${d.id}${d.alt ? ` — the ${d.alt}` : ''}: a ${tEn.toLowerCase()}${con ? ` in ${con.en}` : ''}, magnitude ${d.mag}, spanning about ${d.dim} arcminutes of sky.`,
+      descriptionZh: `${d.id}${MESSIER_ZH[d.id] ? `（${MESSIER_ZH[d.id]}）` : ''}：${con ? `位於${con.zh}的` : ''}${tZh}，視星等 ${d.mag}，視大小約 ${d.dim} 角分。`,
+      dataSource: [D3C, { name: 'Messier catalogue (1781)', license: 'Public domain' }],
+      updatedAt: '2026-09-26',
+    } as CelestialObject
+  })
 
 export const SKY_OBJECTS: CelestialObject[] = [
   {
@@ -144,46 +301,17 @@ export const SKY_OBJECTS: CelestialObject[] = [
     sourceType: 'real',
     parentId: 'earth',
     position: { kind: 'origin' },
-    physical: {},
+    physical: { extra: { Stars: `${SKY.stars.length.toLocaleString()} (to magnitude 6)`, Constellations: '88 (IAU)', 'Deep-sky objects': '110 Messier objects' } },
     visual: { renderer: 'none', hostsScene: 'sky' },
     discoveryStatus: 'confirmed',
-    description: 'The celestial sphere as seen from Earth. Constellations are patterns defined from our viewpoint — their stars are usually at very different distances and are not physically related.',
-    descriptionZh: '從地球看到的天球。星座是從我們視角定義的圖案，其中的恆星通常距離差異很大，並非真實的物理群聚。',
-    dataSource: [HIP, { name: 'IAU constellation boundaries & names', license: 'Public' }],
-    updatedAt: U,
+    description: 'The celestial sphere as seen from Earth: every star visible to the naked eye, the 88 IAU constellations and the Messier catalogue. Constellations are patterns defined from our viewpoint — their stars are usually at very different distances.',
+    descriptionZh: '從地球看見的天球：肉眼可見的所有恆星、國際天文聯合會的 88 個星座與梅西耶天體。星座是從我們視角定義的圖案，其中的恆星距離通常相差甚遠。',
+    dataSource: [D3C, HIP],
+    updatedAt: '2026-09-26',
   },
-  ...CONSTELLATIONS.map((c): CelestialObject => ({
-    id: c.id,
-    name: c.name,
-    nameZh: c.zh,
-    aliases: [c.abbr],
-    type: 'constellation',
-    sourceType: 'real',
-    parentId: 'celestial-sphere',
-    position: { kind: 'origin' },
-    physical: { extra: { 'Stick figure': 'Asterism lines are a viewpoint-dependent pattern', 'IAU abbreviation': c.abbr } },
-    visual: { renderer: 'constellation' },
-    discoveryStatus: 'confirmed',
-    description: c.desc,
-    descriptionZh: c.descZh,
-    dataSource: [HIP],
-    updatedAt: U,
-    constellation: { lines: c.lines, abbr: c.abbr },
-  })),
-  ...STAR_ROWS.map(([id, name, zh, con, h, m, s, d, dm, ds, vmag, bv, ly, sp]): CelestialObject => ({
-    id,
-    name,
-    nameZh: zh,
-    type: 'star',
-    sourceType: 'real',
-    parentId: con || 'celestial-sphere',
-    position: { kind: 'equatorial', raDeg: hmsToDeg(h, m, s), decDeg: dmsToDeg(d, dm, ds), distancePc: ly ? ly / PC_IN_LY : 0 },
-    physical: { apparentMagnitude: vmag, distanceLy: ly ?? undefined, spectralType: sp, temperatureK: Math.round(bvToTemperature(bv) / 10) * 10, extra: { 'B−V colour index': bv.toFixed(2), ...(ly ? {} : { Distance: 'Poorly constrained' }) } },
-    visual: { renderer: 'star', starColor: bvToColor(bv), magnitude: vmag },
-    discoveryStatus: 'confirmed',
-    description: `${name} (${sp}), apparent magnitude ${vmag.toFixed(2)}${con ? `, in ${CONSTELLATIONS.find((c) => c.id === con)?.name}` : ''}.`,
-    descriptionZh: `${zh}（${sp}），視星等 ${vmag.toFixed(2)}${con ? `，位於${CONSTELLATIONS.find((c) => c.id === con)?.zh}` : ''}。`,
-    dataSource: [HIP],
-    updatedAt: U,
-  })),
+  ...constellationObjects,
+  ...starObjects,
+  ...dsoObjects,
 ]
+
+export { starIdByHip }

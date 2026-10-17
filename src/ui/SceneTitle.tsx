@@ -13,7 +13,7 @@ export function SceneTitle() {
     const host = registry.get(registry.sceneById(sceneId).hostId)
     if (!host) return
     setShow(sceneId)
-    const t = setTimeout(() => setShow(null), 3200)
+    const t = setTimeout(() => setShow(null), 3800)
     return () => clearTimeout(t)
   }, [sceneId])
   if (!show || tour) return null
@@ -22,9 +22,9 @@ export function SceneTitle() {
   if (!host) return null
   const sub = { universe: ['Level 0 · Observable Universe', '層級 0 · 可觀測宇宙'], galaxy: ['Level 1–2 · Galaxy', '層級 1–2 · 星系'], system: ['Level 3–5 · Star System', '層級 3–5 · 恆星系統'], nebula: ['Level 3 · Deep-Space Object', '層級 3 · 深空天體'], 'black-hole': ['Level 4 · Black Hole · visual simulation', '層級 4 · 黑洞 · 視覺模擬'], sky: ['Celestial sphere from Earth', '從地球看見的天球'], 'fantasy-universe': ['Fictional sector · procedural', '虛構星區 · 程序化生成'] }[scene.kind]
   return (
-    <div key={show} className="pointer-events-none absolute inset-x-0 top-[22%] text-center" style={{ animation: 'fadeIn 1.2s ease both' }}>
-      <div className="text-[10px] uppercase tracking-[0.45em] text-muted">{sub[lang === 'zh' ? 1 : 0]}</div>
-      <div className="mt-2 font-display text-4xl font-light tracking-[0.12em] text-ink/90 md:text-5xl">{displayName(host, lang)}</div>
+    <div key={show} className="pointer-events-none absolute inset-x-0 top-[21%] text-center">
+      <div className="scene-title eyebrow" style={{ animationDelay: '0.15s' }}>{sub[lang === 'zh' ? 1 : 0]}</div>
+      <div className="scene-title mt-3 font-display font-semibold text-[40px] text-ink/90 md:text-[56px]">{displayName(host, lang)}</div>
     </div>
   )
 }

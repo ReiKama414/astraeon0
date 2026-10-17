@@ -37,7 +37,7 @@ export function TopBar() {
       <div className="absolute left-4 top-4 flex max-w-[60vw] items-start gap-3 md:left-6 md:top-5">
         <div>
           <button className="pointer-events-auto block text-left" onClick={() => travelTo('universe')} aria-label="ASTRALIS — back to the universe overview">
-            <div className="font-display text-[19px] font-normal leading-none tracking-[0.38em] text-ink md:text-[26px] md:tracking-[0.42em]">ASTRALIS</div>
+            <div className="font-display font-semibold text-[20px] leading-none tracking-[0.4em] text-ink transition-[letter-spacing] duration-700 hover:tracking-[0.46em] md:text-[27px]">ASTRALIS</div>
           </button>
           <div className="mt-2 hidden md:block">
             <Breadcrumb />
@@ -58,7 +58,7 @@ export function TopBar() {
       </div>
       <div className="absolute bottom-[92px] left-4 hidden text-[10px] leading-relaxed tracking-wide text-faint md:left-6 md:block">
         <div>{scene.kind === 'sky' && skyDepth > 0.02 ? (lang === 'zh' ? '真實 3D 距離：1 單位 = 1 光年' : 'True 3D distances: 1 unit = 1 light-year') : SCALES[scene.kind].unitLabel}</div>
-        {SCALES[scene.kind].presentation && <div className="text-amber/70">{lang === 'zh' ? '展示比例：尺寸經壓縮以利觀察' : 'Presentation scale — sizes compressed for visibility'}</div>}
+        {SCALES[scene.kind].presentation && <div className="text-champagne/60">{lang === 'zh' ? '展示比例：尺寸經壓縮以利觀察' : 'Presentation scale — sizes compressed for visibility'}</div>}
       </div>
     </>
   )

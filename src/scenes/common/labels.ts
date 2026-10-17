@@ -54,6 +54,7 @@ export function projectLabels(camera: THREE.Camera, width: number, height: numbe
     if (!visible) {
       if (el.style.opacity !== '0') {
         el.style.opacity = '0'
+        el.style.filter = 'blur(3px)'
         el.style.pointerEvents = 'none'
       }
       return
@@ -63,6 +64,7 @@ export function projectLabels(camera: THREE.Camera, width: number, height: numbe
     el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`
     if (el.style.opacity !== '1') {
       el.style.opacity = '1'
+      el.style.filter = 'none'
       el.style.pointerEvents = 'auto'
     }
   })

@@ -71,7 +71,7 @@ vPlanetUv = uv;
     vec3 Ls = normalize(uSunWorld - vWorldP);
     vec3 Nw = normalize(vWorldP - uCenterWorld);
     float night = (1.0 - smoothstep(-0.2, 0.1, dot(Nw, Ls)));
-    totalEmissiveRadiance += uEmissiveTint * em * (0.35 + 0.65*night) * 2.5;
+    totalEmissiveRadiance += uEmissiveTint * em * (0.08 + 0.92*night) * 2.2;
     // ring shadow: ray toward the Sun crosses the ring plane inside the ring annulus
     if(uRingOpacity > 0.0){
       float denom = dot(Ls, uRingNormal);
@@ -117,6 +117,8 @@ void main(){
 }
 `
 export const earthFrag = /* glsl */ `
+${NOISE}
+uniform float uDetail;
 uniform sampler2D uDay;
 uniform sampler2D uNight;
 uniform sampler2D uBRC;       // r bump, g roughness, b clouds
@@ -134,6 +136,17 @@ varying vec3 vObjN;
 varying vec3 vWorldN;
 varying vec3 vUpW;
 
+// close range: tent-filter the source JPEGs so 8×8 compression blocks don't show
+vec4 soft(sampler2D t, vec2 uv){
+  if (uDetail < 0.01) return texture2D(t, uv);
+  vec2 o = uTexel * 1.6 * uDetail;
+  vec4 c = texture2D(t, uv) * 0.36;
+  c += texture2D(t, uv + vec2(o.x, o.y)) * 0.16;
+  c += texture2D(t, uv + vec2(-o.x, o.y)) * 0.16;
+  c += texture2D(t, uv + vec2(o.x, -o.y)) * 0.16;
+  c += texture2D(t, uv + vec2(-o.x, -o.y)) * 0.16;
+  return c;
+}
 float heightAt(vec2 uv){ return uHasTextures > 0.5 ? texture2D(uBRC, uv).r : texture2D(uFallbackData, uv).r; }
 
 void main(){
@@ -147,6 +160,15 @@ void main(){
   float hy = heightAt(vUv + vec2(0.0, uTexel.y));
   float bumpK = uHasTextures > 0.5 ? 2.2 : 3.0;
   vec3 N = normalize(N0 - (east*(hx-h) + north*(hy-h)) * bumpK * 8.0);
+  // close-range micro relief: multi-octave noise fades in at low altitude
+  float micro = 0.0;
+  if (uDetail > 0.001) {
+    vec3 q = vObjN * 900.0;
+    micro = snoise(q) * 0.5 + snoise(q * 3.1) * 0.25 + snoise(q * 9.7) * 0.125;
+    float mx = snoise(q + vec3(0.37, 0.0, 0.0)) - snoise(q);
+    float my = snoise(q + vec3(0.0, 0.0, 0.37)) - snoise(q);
+    N = normalize(N - (east * mx + north * my) * 0.18 * uDetail);
+  }
 
   vec3 L = normalize(uSunWorld - vWorld);
   vec3 V = normalize(cameraPosition - vWorld);
@@ -159,12 +181,12 @@ void main(){
   // shadow: sample clouds displaced toward the sun along the surface
   vec2 sunOff = vec2(dot(L, east), dot(L, north)) * 0.0025;
   if(uHasTextures > 0.5){
-    day = texture2D(uDay, vUv).rgb;
-    night = texture2D(uNight, vUv).rgb;
-    vec3 brc = texture2D(uBRC, vUv).rgb;
+    day = soft(uDay, vUv).rgb;
+    night = soft(uNight, vUv).rgb;
+    vec3 brc = soft(uBRC, vUv).rgb;
     rough = brc.g;
-    cloudHere = texture2D(uBRC, cuv).b;
-    cloudShadow = texture2D(uBRC, cuv - sunOff).b;
+    cloudHere = soft(uBRC, cuv).b;
+    cloudShadow = soft(uBRC, cuv - sunOff).b;
   } else {
     day = texture2D(uFallbackAlbedo, vUv).rgb;
     vec4 dt = texture2D(uFallbackData, vUv);
@@ -175,6 +197,8 @@ void main(){
     cloudShadow = texture2D(uFallbackClouds, cuv - sunOff).r;
   }
   float ocean = (1.0 - smoothstep(0.35, 0.55, rough));
+  day *= 1.0 + micro * 0.2 * uDetail * (1.0 - ocean);
+  night *= 1.0 + micro * 0.5 * uDetail;
   float wrap = smoothstep(-0.12, 0.35, NdL0);
   float diff = max(NdL, 0.0) * 0.85 + 0.15 * wrap;
   diff *= 1.0 - cloudShadow * 0.55;

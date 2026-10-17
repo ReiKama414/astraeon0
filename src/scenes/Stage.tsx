@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useMemo, useRef } from 'react'
-import { Canvas, useFrame, useThree, advance } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { EffectComposer, Bloom, Vignette, ToneMapping, SMAA } from '@react-three/postprocessing'
 import { ToneMappingMode, type EffectComposer as ECImpl } from 'postprocessing'
 import * as THREE from 'three'
@@ -71,31 +71,40 @@ function AdaptivePerformance() {
   }, [resolved, setDpr])
   useFrame((_, dt) => {
     const a = acc.current
+    // ignore throttled / background frames: they say nothing about GPU load
+    if (document.hidden || dt > 0.25) {
+      a.frames = 0
+      a.time = 0
+      return
+    }
     a.frames++
     a.time += dt
-    if (a.time < 1.5) return
+    if (a.time < 2) return
     const fps = a.frames / a.time
     perfStats.fps = fps
     perfStats.frameMs = (a.time / a.frames) * 1000
     a.frames = 0
     a.time = 0
-    if (photo || useApp.getState().transitioning) return
+    if (photo || capturing || useApp.getState().transitioning) return
     const target = isMobile() ? 30 : 55
     const [lo, hi] = QUALITY[resolved].dpr
     // full-screen ray marching (black holes) is fill-rate bound: cap its resolution
     const heavy = registry.sceneById(useApp.getState().sceneId).kind === 'black-hole'
     const maxDpr = Math.min(hi, window.devicePixelRatio || 1, heavy ? 1.25 : 4)
     if (a.dpr > maxDpr) a.dpr = maxDpr
-    else if (fps < target * 0.85 && a.dpr > lo) a.dpr = Math.max(lo, a.dpr - 0.15)
-    else if (fps > target * 1.08 && a.dpr < maxDpr) a.dpr = Math.min(maxDpr, a.dpr + 0.1)
-    else if (fps < target * 0.6 && a.dpr <= lo) a.lowStreak++
+    else if (fps < target * 0.8 && a.dpr > lo) a.dpr = Math.max(lo, a.dpr - 0.1)
+    else if (fps > target * 0.97 && a.dpr < maxDpr) a.dpr = Math.min(maxDpr, a.dpr + 0.1)
+    if (fps < target * 0.55 && a.dpr <= lo) a.lowStreak++
+    else a.lowStreak = 0
     if (Math.abs(gl.getPixelRatio() - a.dpr) > 0.01) setDpr(a.dpr)
     perfStats.dpr = a.dpr
-    if (quality === 'auto' && a.lowStreak >= 3) {
+    // Auto only steps down a tier after sustained, genuine overload; never below medium on desktop
+    if (quality === 'auto' && a.lowStreak >= 4) {
       a.lowStreak = 0
       const order = ['low', 'medium', 'high', 'ultra'] as const
       const i = order.indexOf(resolved)
-      if (i > 0) useApp.getState().set({ resolvedQuality: order[i - 1] })
+      const floor = isMobile() ? 0 : 1
+      if (i > floor) useApp.getState().set({ resolvedQuality: order[i - 1] })
     }
   })
   return null
@@ -147,26 +156,39 @@ function PerfProbe() {
   return null
 }
 
-function CaptureBridge({ composer }: { composer: React.RefObject<ECImpl | null> }) {
-  const { gl, size } = useThree()
+/**
+ * Screenshot bridge: switches the canvas to the capture resolution through R3F (so the composer and
+ * its multisampled buffers resize properly), waits for fully post-processed frames, then reads pixels
+ * right after the composer has rendered (priority 2 > composer's 1).
+ */
+let capturing = false
+function CaptureBridge() {
+  const { gl, size, setDpr } = useThree()
+  const pending = useRef<{ frames: number; resolve: (url: string) => void } | null>(null)
+  useFrame(() => {
+    const p = pending.current
+    if (!p) return
+    if (--p.frames > 0) return
+    pending.current = null
+    p.resolve(gl.domElement.toDataURL('image/png'))
+  }, 2)
   useEffect(() => {
     setCaptureHandler(async (scale: number) => {
-      const c = composer.current
       const prev = gl.getPixelRatio()
       const maxDim = Math.min(gl.capabilities.maxTextureSize, 8192)
       const target = Math.min(scale * (window.devicePixelRatio || 1), maxDim / Math.max(size.width, size.height))
-      gl.setPixelRatio(target)
-      gl.setSize(size.width, size.height, false)
-      c?.setSize(size.width, size.height)
-      c?.render(0)
-      const url = gl.domElement.toDataURL('image/png')
-      gl.setPixelRatio(prev)
-      gl.setSize(size.width, size.height, false)
-      c?.setSize(size.width, size.height)
-      return { url, width: Math.round(size.width * target), height: Math.round(size.height * target) }
+      capturing = true
+      setDpr(target)
+      try {
+        const url = await new Promise<string>((resolve) => (pending.current = { frames: 3, resolve }))
+        return { url, width: Math.round(size.width * target), height: Math.round(size.height * target) }
+      } finally {
+        setDpr(prev)
+        capturing = false
+      }
     })
     return () => setCaptureHandler(null)
-  }, [gl, size, composer])
+  }, [gl, size, setDpr])
   return null
 }
 
@@ -177,19 +199,17 @@ function PostFX() {
   useEffect(() => () => warp.dispose(), [warp])
   return (
     <>
-      <EffectComposer ref={composer} multisampling={0} frameBufferType={THREE.HalfFloatType} enableNormalPass={false}>
+      <EffectComposer ref={composer} multisampling={q.msaa} frameBufferType={THREE.HalfFloatType} enableNormalPass={false}>
         <Bloom mipmapBlur intensity={0.7} luminanceThreshold={1.0} luminanceSmoothing={0.3} radius={0.7} levels={q.bloomLevels} />
         <primitive object={warp} />
         <Vignette offset={0.32} darkness={0.55} />
         <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-        {q.smaa ? <SMAA /> : <></>}
+        {q.smaa && q.msaa === 0 ? <SMAA /> : <></>}
       </EffectComposer>
-      <CaptureBridge composer={composer} />
+      <CaptureBridge />
     </>
   )
 }
-
-if (import.meta.env.DEV) (window as unknown as { __advance: typeof advance }).__advance = advance
 
 export function Stage() {
   const resolved = useApp((s) => s.resolvedQuality)

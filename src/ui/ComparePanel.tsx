@@ -71,7 +71,7 @@ const METRICS: { key: string; label: [string, string] }[] = [
   { key: 'diameter', label: ['Diameter', '直徑'] },
 ]
 
-export function ComparePanel() {
+export function ComparePanel({ shown }: { shown: boolean }) {
   const lang = useApp((s) => s.lang)
   const ids = useApp((s) => s.compareIds)
   const selected = useApp((s) => s.selectedId)
@@ -90,10 +90,10 @@ export function ComparePanel() {
   }).filter((b) => b.nums.length >= 1)
 
   return (
-    <div className="pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-black/40 p-2 md:p-8" onPointerDown={(e) => e.target === e.currentTarget && set({ panel: 'none' })}>
-      <div className="fade-in flex max-h-full w-full max-w-[980px] flex-col overflow-hidden rounded-2xl glass-strong">
+    <div data-shown={shown} className="veil pointer-events-auto absolute inset-0 z-30 flex items-center justify-center bg-black/45 p-2 md:p-8" onPointerDown={(e) => e.target === e.currentTarget && set({ panel: 'none' })}>
+      <div data-shown={shown} className="pop flex max-h-full w-full max-w-[980px] flex-col overflow-hidden rounded-[20px] glass-strong">
         <div className="flex items-center gap-3 border-b border-line px-5 py-3">
-          <div className="font-display text-xl">{lang === 'zh' ? '天體比較' : 'Celestial Comparison'}</div>
+          <div className="font-display font-semibold text-[24px]">{lang === 'zh' ? '天體比較' : 'Celestial Comparison'}</div>
           <div className="ml-auto flex items-center gap-1 rounded-full bg-white/[0.05] p-0.5 text-[11px]">
             <button className={`rounded-full px-3 py-1 ${!actual ? 'bg-white/10 text-ink' : 'text-muted'}`} onClick={() => setActual(false)}>
               {lang === 'zh' ? '展示比例' : 'Presentation scale'}
@@ -115,14 +115,14 @@ export function ComparePanel() {
             )}
             <div className="pointer-events-none absolute bottom-2 left-3 text-[10.5px] text-faint">
               {actual ? (lang === 'zh' ? '半徑依真實數值等比例縮放' : 'Radii drawn to true proportion') : lang === 'zh' ? '展示比例：半徑以對數壓縮，並非真實比例' : 'Presentation scale: radii log-compressed — not to scale'}
-              {tiny && <span className="text-amber/80"> · {lang === 'zh' ? '部分天體在真實比例下過小而難以看見' : 'some bodies are too small to see at true scale'}</span>}
+              {tiny && <span className="text-champagne/80"> · {lang === 'zh' ? '部分天體在真實比例下過小而難以看見' : 'some bodies are too small to see at true scale'}</span>}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 px-5 pt-4">
             {objs.map((o) => (
               <span key={o.id} className="flex items-center gap-1.5 rounded-full bg-white/[0.06] py-1 pl-3 pr-1 text-[12px]">
                 {displayName(o, lang)}
-                {o.sourceType !== 'real' && <span className="text-[10px] text-amber">◇</span>}
+                {o.sourceType !== 'real' && <span className="badge fiction" />}
                 <button className="btn-icon h-6 w-6" onClick={() => set({ compareIds: ids.filter((x) => x !== o.id) })} aria-label="Remove">
                   <Icon name="close" size={12} />
                 </button>
@@ -167,7 +167,7 @@ export function ComparePanel() {
                         <span className="truncate text-muted">{displayName(o, lang)}</span>
                         <div className="flex items-center gap-2">
                           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.05]">
-                            <div className="h-full rounded-full bg-gradient-to-r from-violet/70 to-cyan/70" style={{ width: `${Math.max(0, Math.min(1, w)) * 100}%` }} />
+                            <div className="h-full rounded-full bg-ink/55 transition-[width] duration-700 ease-[var(--ease-soft)]" style={{ width: `${Math.max(0, Math.min(1, w)) * 100}%` }} />
                           </div>
                           <span className={`w-[128px] truncate text-right tabular-nums ${n ? 'text-ink/85' : 'text-faint'}`}>{v?.value ?? (lang === 'zh' ? '不適用' : 'n/a')}</span>
                         </div>
